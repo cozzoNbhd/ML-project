@@ -1,0 +1,17 @@
+# Ignora le cartelle dei virtual environments
+venv/
+env/
+
+# Ignora i file di cache di Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignora i file generati da pip
+*.log
+
+# Ignora Jupyter Notebook checkpoint
+.ipynb_checkpoints/
+
+# Ignora le librerie installate
+*.egg-info/
