@@ -1,14 +1,41 @@
 # This is a sample Python script.
 
-# Press Maiusc+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm
+
+def load_data():
+
+    df = pd.read_csv('./datasets/monk/monks-1.train', delim_whitespace=True, header=None)
+    print(df)
+
+    # Controlla la struttura del DataFrame
+    print("Dimensioni del DataFrame originale:", df.shape)
+
+    y_train = df.iloc[:, 0]
+
+    x_train = df.iloc[:, 1:]
+
+    print(df.head())
+    print(df.columns)
+    print(df.dtypes)
+
+    # Converti in liste di liste
+    x_train_list = x_train.select_dtypes(include=[np.number]).to_numpy()
+    y_train_list = y_train.to_numpy()
+
+    # Stampa i risultati
+    print("X (lista di liste):")
+    print(x_train_list)
+
+    print("Y (lista):")
+    print(y_train_list)
+    scaler = StandardScaler()
+    standardized_data = scaler.fit_transform(x_train_list)
+    print(standardized_data)
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+load_data()
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
