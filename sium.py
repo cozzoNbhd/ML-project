@@ -33,10 +33,20 @@ def load_data():
     scaler = StandardScaler()
     standardized_data = scaler.fit_transform(x_train_list)
     print(standardized_data)
+    # Create a kernel support vector machine model
+    ksvm = svm.SVC(kernel='rbf',
+                gamma=0.1,
+                C=10.0)
 
     X_train, X_val, y_train, y_val = train_test_split(
     x_train_list, y_train_list, test_size=0.20, random_state=42)
     
+    # Train the model on the training data
+    ksvm.fit(X_train, y_train)
+    
+    # Evaluate the model on the test data
+    accuracy = ksvm.score(X_val, y_val)
+    print('Accuracy:', accuracy)
 
 load_data()
 
