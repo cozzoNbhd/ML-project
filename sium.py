@@ -108,7 +108,49 @@ def nested_grid_search():
     # Modello di base
     model = SVC()
 
-    # Grid Search CV per il ciclo interno
+    # Risultati della nested cross-validation
+    nested_scores = []
+
+    for train_idx, val_idx in outer_cv.split(x_train_list, y_train_list):
+        # Dati di training e test per l'outer loop
+        X_train, X_val = x_train_list[train_idx], x_train_list[val_idx]
+        Y_train, Y_val = y_train_list[train_idx], y_train_list[val_idx]
+        
+        # Grid Search nel loop interno
+        grid_search = GridSearchCV(
+            estimator=model,
+            param_grid=parameters,
+            cv=inner_cv,
+            scoring='accuracy',
+            n_jobs=-1
+        )
+        grid_search.fit(X_train, Y_train)
+        
+        # Valuta il modello con i migliori parametri sul test set dell'outer loop
+        best_model = grid_search.best_estimator_
+        test_score = best_model.score(X_val, Y_val)
+        
+        # Memorizza il punteggio
+        nested_scores.append(test_score)
+
+        # Mostra i risultati
+        print("Nested CV Accuracy Scores:", nested_scores)
+        print("Media Nested CV Accuracy:", np.mean(nested_scores))
+
+    # Addestriamo con il miglior parametro
+    best_model.fit(X_val, Y_val)
+
+    # Predici sul set di test
+    y_pred = best_model.predict(x_test_list)
+
+    # Valutazione modello
+    print("\n Report di classificazione:")
+    print(classification_report(y_test, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
+
+
+
+    """# Grid Search CV per il ciclo interno
     gs_cv = GridSearchCV(estimator=model,
                          param_grid=parameters,
                          cv=inner_cv,
@@ -138,12 +180,13 @@ def nested_grid_search():
     # Valutazione sul set di test
     print("\n Report di classificazione sul set di test:")
     print(classification_report(y_test, y_pred))
-    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))"""
 
 
 
-
-#load_data()
+grid_search()
 
 
 #load_data_with_nested_grid_search()
+
+#nested_grid_search()
