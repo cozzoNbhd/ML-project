@@ -4,21 +4,24 @@ import pandas as pd
 from sklearn.preprocessing import normalize
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn import svm
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split, GridSearchCV, KFold
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import cross_val_score
 
-def load_data():
+
+def grid_search():
 
     df = pd.read_csv('./datasets/monk/monks-1.train', sep="\s+", header=None)
-
+    df_test = pd.read_csv('./datasets/monk/monks-1.test', sep="\s+", header=None)
     # Controlla la struttura del DataFrame
     #print("Dimensioni del DataFrame originale:", df.shape)
 
     y_train = df.iloc[:, 0]
+    y_test = df_test.iloc[:,0]
 
+    x_test = df_test.iloc[:, 1:]
     x_train = df.iloc[:, 1:]
-
     #print(df.head())
     #print(df.columns)
     #print(df.dtypes)
@@ -27,31 +30,120 @@ def load_data():
     x_train_list = x_train.select_dtypes(include=[np.number]).to_numpy()
     y_train_list = y_train.to_numpy()
 
-    # Stampa i risultati
-    #print("X (lista di liste):")
-    #print(x_train_list)
+    x_test_list = x_test.select_dtypes(include=[np.number]).to_numpy()
+    y_test_list = y_test.to_numpy()
 
-    #print("Y (lista):")
-    #print(y_train_list)
     scaler = StandardScaler()
     #standardized_data = scaler.fit_transform(x_train_list)
-    parameters = {'kernel':('linear', 'rbf'), 'C':[1, 10]}
-    x_train_n=normalize(x_train_list, norm="l2")
-    #print(standardized_data)
+    parameters = {'kernel':('linear', 'rbf'), 'C':[0.1, 1, 5, 10], "gamma":[0.001, 0.01, 0.1, 1]}
+    #x_train_n=normalize(x_train_list, norm="l2")
+    # Implementiamo la cross-validation
+    kfold = KFold(n_splits=5, shuffle=True, random_state=42)
     # Create a kernel support vector machine model
-    abc = svm.SVC()
-    gs_cv = GridSearchCV(abc, parameters)
-    
+    model = SVC()
+    gs_cv = GridSearchCV(estimator=model,
+            param_grid= parameters,
+            cv=kfold,
+            scoring="accuracy",
+            n_jobs=-1,
+            return_train_score = True,
+            verbose = 1)
+
+    # Stampiamo i parametri selezionati
+
     gs_cv.fit(x_train_list, y_train_list)
+
+    param = gs_cv.cv_results_
+    print(param)
     # Train the model on the training data
     #
-    X_train, X_val, y_train, y_val = train_test_split(
-    x_train_list, y_train_list, test_size=0.2, random_state=42)
+    #X_train, X_val, y_train, y_val = train_test_split(
+    #x_train_list, y_train_list, test_size=0.2, random_state=42)
     #ksvm.fit(x_train_list, y_train_list)
     # Evaluate the model on the test data
-    accuracy = gs_cv.score(X_val, y_val)
-    print('Accuracy:', accuracy)
+    print("Migliori parametri: ", gs_cv.best_params_)
+    print("Miglior punteggio (cross-validation): ", gs_cv.best_score_)
 
-load_data()
+    # Addestriamo con i migliori parametri
+    best_model=gs_cv.best_estimator_
+    best_model.fit(x_train_list, y_train_list)
+
+    # Predici sul set di test
+    y_pred = best_model.predict(x_test_list)
+
+    # Valutazione modello
+    print("\n Report di classificazione:")
+    print(classification_report(y_test, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
 
 
+def nested_grid_search():
+
+    df = pd.read_csv('./datasets/monk/monks-1.train', sep="\s+", header=None)
+    df_test = pd.read_csv('./datasets/monk/monks-1.test', sep="\s+", header=None)
+
+    y_train = df.iloc[:, 0]
+    y_test = df_test.iloc[:, 0]
+
+    x_train = df.iloc[:, 1:]
+    x_test = df_test.iloc[:, 1:]
+
+    x_train_list = x_train.select_dtypes(include=[np.number]).to_numpy()
+    y_train_list = y_train.to_numpy()
+
+    x_test_list = x_test.select_dtypes(include=[np.number]).to_numpy()
+    y_test_list = y_test.to_numpy()
+
+    # Parametri per GridSearch
+    parameters = {
+        'kernel': ('linear', 'rbf'),
+        'C': [0.1, 1, 5, 10],
+        'gamma': [0.001, 0.01, 0.1, 1]
+    }
+
+    # Nested Cross-Validation
+    outer_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+    inner_cv = KFold(n_splits=3, shuffle=True, random_state=42)
+
+    # Modello di base
+    model = SVC()
+
+    # Grid Search CV per il ciclo interno
+    gs_cv = GridSearchCV(estimator=model,
+                         param_grid=parameters,
+                         cv=inner_cv,
+                         scoring="accuracy",
+                         n_jobs=-1)
+
+    # Cross-validation esterna per valutare il modello
+    nested_scores = cross_val_score(gs_cv,
+                                    X=x_train_list,
+                                    y=y_train_list,
+                                    cv=outer_cv,
+                                    scoring='accuracy')
+
+    print(f"Accuratezza media nel ciclo esterno: {nested_scores.mean():.4f}")
+    print(f"Deviazione standard nel ciclo esterno: {nested_scores.std():.4f}")
+
+    # Addestriamo il miglior modello sull'intero set di addestramento
+    gs_cv.fit(x_train_list, y_train_list)
+    print("Migliori parametri (dopo Nested Grid Search): ", gs_cv.best_params_)
+
+    best_model = gs_cv.best_estimator_
+    best_model.fit(x_train_list, y_train_list)
+
+    # Predici sul set di test
+    y_pred = best_model.predict(x_test_list)
+
+    # Valutazione sul set di test
+    print("\n Report di classificazione sul set di test:")
+    print(classification_report(y_test, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
+
+
+
+
+#load_data()
+
+
+#load_data_with_nested_grid_search()
