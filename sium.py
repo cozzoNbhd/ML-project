@@ -5,9 +5,93 @@ from sklearn.preprocessing import normalize
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split, GridSearchCV, KFold
+from sklearn.model_selection import train_test_split, GridSearchCV, KFold, RandomizedSearchCV
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import cross_val_score
+import scipy.stats as stats
+
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.model_selection import KFold, RandomizedSearchCV
+from sklearn.metrics import classification_report, accuracy_score
+import numpy as np
+import scipy.stats as stats
+
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.model_selection import KFold, RandomizedSearchCV
+from sklearn.metrics import classification_report, accuracy_score
+import numpy as np
+import scipy.stats as stats
+
+def random_grid_search():
+    # Carica i dati
+    df = pd.read_csv('./datasets/monk/monks-1.train', sep="\s+", header=None)
+    df_test = pd.read_csv('./datasets/monk/monks-1.test', sep="\s+", header=None)
+
+    # Separazione delle feature e del target
+    y_train = df.iloc[:, 0]
+    y_test = df_test.iloc[:, 0]
+    x_train = df.iloc[:, 1:]
+    x_test = df_test.iloc[:, 1:]
+
+    # Codifica delle variabili categoriche
+    x_train = pd.get_dummies(x_train)
+    x_test = pd.get_dummies(x_test)
+    # 1. Assicurati che i nomi delle colonne siano stringhe
+    x_train.columns = x_train.columns.astype(str)
+    x_test.columns = x_test.columns.astype(str)
+
+    # 2. Converte colonne categoriche in numeriche
+    x_train = pd.get_dummies(x_train)
+    x_test = pd.get_dummies(x_test)
+
+    # 3. Allinea colonne tra training e test set
+    x_train, x_test = x_train.align(x_test, join='left', axis=1, fill_value=0)
+
+    # 4. Standardizza i dati numerici
+    scaler = StandardScaler()
+    x_train_scaled = scaler.fit_transform(x_train)
+    x_test_scaled = scaler.transform(x_test)
+
+    # Definizione del modello e dei parametri
+    model = SVC()
+    param_distributions = {
+        'kernel': ['linear', 'rbf'],
+        'C': stats.loguniform(1e-2, 1e1),
+        'gamma': stats.loguniform(1e-4, 1e-1)
+    }
+
+    # Implementazione della cross-validation
+    kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+    rs_cv = RandomizedSearchCV(
+        estimator=model,
+        param_distributions=param_distributions,
+        n_jobs=-1,
+        cv=kfold,
+        scoring="accuracy",
+        random_state=42,
+        return_train_score=True
+    )
+
+    # Addestramento del modello
+    rs_cv.fit(x_train_scaled, y_train)
+
+    # Migliori parametri
+    print("Migliori parametri: ", rs_cv.best_params_)
+    print("Miglior punteggio (cross-validation): ", rs_cv.best_score_)
+
+    # Valutazione del modello sul set di test
+    best_model = rs_cv.best_estimator_
+    y_pred = best_model.predict(x_test_scaled)
+
+    print("\nReport di classificazione:")
+    print(classification_report(y_test, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
+
+
 
 
 def grid_search():
@@ -182,11 +266,12 @@ def nested_grid_search():
     print(classification_report(y_test, y_pred))
     print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))"""
 
+random_grid_search()
 
-
-grid_search()
+#grid_search()
 
 
 #load_data_with_nested_grid_search()
 
 #nested_grid_search()
+
