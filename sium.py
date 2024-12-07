@@ -10,21 +10,6 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import cross_val_score
 import scipy.stats as stats
 
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.model_selection import KFold, RandomizedSearchCV
-from sklearn.metrics import classification_report, accuracy_score
-import numpy as np
-import scipy.stats as stats
-
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.model_selection import KFold, RandomizedSearchCV
-from sklearn.metrics import classification_report, accuracy_score
-import numpy as np
-import scipy.stats as stats
 
 def random_grid_search():
     # Carica i dati
@@ -229,8 +214,8 @@ def nested_grid_search():
 
     # Valutazione modello
     print("\n Report di classificazione:")
-    print(classification_report(y_test, y_pred))
-    print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))
+    print(classification_report(y_test_list, y_pred))
+    print("Accuratezza sul set di test: ", accuracy_score(y_test_list, y_pred))
 
 
 
@@ -266,12 +251,12 @@ def nested_grid_search():
     print(classification_report(y_test, y_pred))
     print("Accuratezza sul set di test: ", accuracy_score(y_test, y_pred))"""
 
-random_grid_search()
+#random_grid_search()
 
 #grid_search()
 
 
 #load_data_with_nested_grid_search()
 
-#nested_grid_search()
+nested_grid_search()
 
