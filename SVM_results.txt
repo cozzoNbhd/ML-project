@@ -18,7 +18,7 @@ Accuratezza sul set di test: 0.8703703703703703
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-1.train ---
-Migliori parametri: {'C': 6.218528947223795, 'gamma': 0.14949386065204184, 'kernel': 'rbf'}
+Migliori parametri: {'C': np.float64(6.218528947223795), 'gamma': np.float64(0.14949386065204184), 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.8226666666666667
 
  Report di classificazione:
@@ -73,7 +73,7 @@ Accuratezza sul set di test: 0.7824074074074074
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-2.train ---
-Migliori parametri: {'C': 7.896910002727692, 'gamma': 0.606850157946487, 'kernel': 'rbf'}
+Migliori parametri: {'C': np.float64(7.896910002727692), 'gamma': np.float64(0.606850157946487), 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.7042780748663102
 
  Report di classificazione:
@@ -128,7 +128,7 @@ Accuratezza sul set di test: 0.9745370370370371
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-3.train ---
-Migliori parametri: {'C': 6.218528947223795, 'gamma': 0.14949386065204184, 'kernel': 'rbf'}
+Migliori parametri: {'C': np.float64(6.218528947223795), 'gamma': np.float64(0.14949386065204184), 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.9176666666666666
 
  Report di classificazione:
