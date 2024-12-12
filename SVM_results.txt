@@ -18,39 +18,40 @@ Accuratezza sul set di test: 0.8703703703703703
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-1.train ---
-Migliori parametri: {'C': np.float64(6.218528947223795), 'gamma': np.float64(0.14949386065204184), 'kernel': 'rbf'}
+Migliori parametri: {'C': 6.218528947223795, 'gamma': 0.14949386065204184, 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.8226666666666667
 
  Report di classificazione:
               precision    recall  f1-score   support
 
-           0       0.86      0.87      0.86       216
+           0       0.86      0.88      0.87       216
            1       0.87      0.86      0.86       216
 
-    accuracy                           0.86       432
-   macro avg       0.86      0.86      0.86       432
-weighted avg       0.86      0.86      0.86       432
+    accuracy                           0.87       432
+   macro avg       0.87      0.87      0.87       432
+weighted avg       0.87      0.87      0.87       432
 
-Accuratezza sul set di test: 0.8634259259259259
+Accuratezza sul set di test: 0.8657407407407407
 
 --------------------------------------------------
 
 --- Esecuzione di Nested Grid Search per il dataset ./datasets/monk/monks-1.train ---
 
-Nested CV Validation Scores: [0.92, 0.8, 0.84, 0.88, 0.75]
-Media Nested CV Validation Score: 0.8379999999999999
+Nested CV Validation Scores: [0.96, 0.76, 0.8, 0.84, 0.75]
+Mean Nested CV Validation Score: 0.8219999999999998
+Best Parameters Across Folds: [{'C': 6.7, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 2.3000000000000003, 'gamma': 1.0, 'kernel': 'rbf'}, {'C': 3.4000000000000004, 'gamma': 0.505, 'kernel': 'rbf'}, {'C': 2.3000000000000003, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 1.2000000000000002, 'gamma': 0.2575, 'kernel': 'rbf'}]
 
-Report di classificazione sul Test Set:
+Classification Report on Test Set:
               precision    recall  f1-score   support
 
-           0       0.78      0.94      0.85       216
-           1       0.92      0.73      0.82       216
+           0       0.82      0.89      0.86       216
+           1       0.88      0.81      0.84       216
 
-    accuracy                           0.84       432
-   macro avg       0.85      0.84      0.83       432
-weighted avg       0.85      0.84      0.83       432
+    accuracy                           0.85       432
+   macro avg       0.85      0.85      0.85       432
+weighted avg       0.85      0.85      0.85       432
 
-Accuratezza sul Test Set: 0.8356481481481481
+Test Set Accuracy: 0.8495370370370371
 
 --------------------------------------------------
 
@@ -73,17 +74,17 @@ Accuratezza sul set di test: 0.7824074074074074
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-2.train ---
-Migliori parametri: {'C': np.float64(7.896910002727692), 'gamma': np.float64(0.606850157946487), 'kernel': 'rbf'}
+Migliori parametri: {'C': 7.896910002727692, 'gamma': 0.606850157946487, 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.7042780748663102
 
  Report di classificazione:
               precision    recall  f1-score   support
 
-           0       0.90      0.78      0.83       290
-           1       0.64      0.82      0.72       142
+           0       0.88      0.80      0.84       290
+           1       0.65      0.78      0.71       142
 
     accuracy                           0.79       432
-   macro avg       0.77      0.80      0.78       432
+   macro avg       0.77      0.79      0.77       432
 weighted avg       0.81      0.79      0.80       432
 
 Accuratezza sul set di test: 0.7916666666666666
@@ -92,20 +93,21 @@ Accuratezza sul set di test: 0.7916666666666666
 
 --- Esecuzione di Nested Grid Search per il dataset ./datasets/monk/monks-2.train ---
 
-Nested CV Validation Scores: [0.7647058823529411, 0.7352941176470589, 0.8235294117647058, 0.6764705882352942, 0.7575757575757576]
-Media Nested CV Validation Score: 0.7515151515151516
+Nested CV Validation Scores: [0.7941176470588235, 0.7352941176470589, 0.7941176470588235, 0.6764705882352942, 0.7272727272727273]
+Mean Nested CV Validation Score: 0.7454545454545455
+Best Parameters Across Folds: [{'C': 3.4000000000000004, 'gamma': 0.7525, 'kernel': 'rbf'}, {'C': 6.7, 'gamma': 0.505, 'kernel': 'rbf'}, {'C': 4.5, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 7.800000000000001, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 4.5, 'gamma': 0.505, 'kernel': 'rbf'}]
 
-Report di classificazione sul Test Set:
+Classification Report on Test Set:
               precision    recall  f1-score   support
 
-           0       0.89      0.78      0.83       290
-           1       0.65      0.81      0.72       142
+           0       0.88      0.79      0.83       290
+           1       0.64      0.78      0.70       142
 
-    accuracy                           0.79       432
-   macro avg       0.77      0.80      0.78       432
-weighted avg       0.81      0.79      0.80       432
+    accuracy                           0.78       432
+   macro avg       0.76      0.78      0.77       432
+weighted avg       0.80      0.78      0.79       432
 
-Accuratezza sul Test Set: 0.7916666666666666
+Test Set Accuracy: 0.7847222222222222
 
 --------------------------------------------------
 
@@ -128,38 +130,39 @@ Accuratezza sul set di test: 0.9745370370370371
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-3.train ---
-Migliori parametri: {'C': np.float64(6.218528947223795), 'gamma': np.float64(0.14949386065204184), 'kernel': 'rbf'}
+Migliori parametri: {'C': 6.218528947223795, 'gamma': 0.14949386065204184, 'kernel': 'rbf'}
 Miglior punteggio (cross-validation): 0.9176666666666666
 
  Report di classificazione:
               precision    recall  f1-score   support
 
-           0       0.95      0.97      0.96       204
-           1       0.97      0.95      0.96       228
-
-    accuracy                           0.96       432
-   macro avg       0.96      0.96      0.96       432
-weighted avg       0.96      0.96      0.96       432
-
-Accuratezza sul set di test: 0.9606481481481481
-
---------------------------------------------------
-
---- Esecuzione di Nested Grid Search per il dataset ./datasets/monk/monks-3.train ---
-
-Nested CV Validation Scores: [1.0, 0.88, 0.9583333333333334, 0.875, 0.9166666666666666]
-Media Nested CV Validation Score: 0.9259999999999999
-
-Report di classificazione sul Test Set:
-              precision    recall  f1-score   support
-
            0       0.94      1.00      0.97       204
-           1       1.00      0.95      0.97       228
+           1       1.00      0.94      0.97       228
 
     accuracy                           0.97       432
    macro avg       0.97      0.97      0.97       432
 weighted avg       0.97      0.97      0.97       432
 
-Accuratezza sul Test Set: 0.9722222222222222
+Accuratezza sul set di test: 0.9675925925925926
+
+--------------------------------------------------
+
+--- Esecuzione di Nested Grid Search per il dataset ./datasets/monk/monks-3.train ---
+
+Nested CV Validation Scores: [0.96, 0.88, 0.9583333333333334, 0.875, 0.9166666666666666]
+Mean Nested CV Validation Score: 0.9179999999999999
+Best Parameters Across Folds: [{'C': 3.4000000000000004, 'gamma': 0.505, 'kernel': 'rbf'}, {'C': 1.2000000000000002, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 2.3000000000000003, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 1.2000000000000002, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 1.2000000000000002, 'gamma': 0.2575, 'kernel': 'rbf'}]
+
+Classification Report on Test Set:
+              precision    recall  f1-score   support
+
+           0       0.94      1.00      0.97       204
+           1       1.00      0.94      0.97       228
+
+    accuracy                           0.97       432
+   macro avg       0.97      0.97      0.97       432
+weighted avg       0.97      0.97      0.97       432
+
+Test Set Accuracy: 0.9699074074074074
 
 --------------------------------------------------

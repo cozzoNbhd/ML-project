@@ -1,9 +1,5 @@
 import numpy
-from matplotlib import pyplot as plt
-from sklearn.decomposition import PCA
-
 from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
-
 import pandas as pd
 from sklearn.preprocessing import normalize
 import numpy as np
@@ -14,6 +10,29 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import cross_val_score
 import scipy.stats as stats
 from scipy.stats import uniform
+import matplotlib.pyplot as plt
+
+def main():
+    datasets = [
+        ('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
+        ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
+        ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
+    ]
+
+    # Apri il file in modalità scrittura
+    with open("SVM_results.txt", "w") as results_file:
+        for train_path, test_path in datasets:
+            results_file.write(f"\n--- Esecuzione di Grid Search per il dataset {train_path} ---\n")
+            grid_search(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
+
+            results_file.write(f"\n--- Esecuzione di Randomized Grid Search per il dataset {train_path} ---\n")
+            random_grid_search(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
+
+            results_file.write(f"\n--- Esecuzione di Nested Grid Search per il dataset {train_path} ---\n")
+            nested_grid_search_kfold(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
 
 def grid_search(train_path, test_path, results_file):
     processor = DatasetProcessor()
@@ -43,6 +62,29 @@ def grid_search(train_path, test_path, results_file):
     results_file.write(classification_report(y_test, y_pred) + "\n")
     results_file.write(f"Accuratezza sul set di test: {accuracy_score(y_test, y_pred)}\n")
 
+    # Plot della curva di apprendimento
+    plot_learning_curve(parameters, gs_cv.cv_results_, "Grid Search Learning Curve")
+
+def plot_learning_curve(parameters, cv_results, title):
+    for gamma in parameters['gamma']:
+        plt.figure()
+        c_values = parameters['C']
+        test_errors = []
+
+        for c in c_values:
+            mean_test_score = [cv_results['mean_test_score'][i] for i in range(len(cv_results['params']))
+                               if cv_results['params'][i]['gamma'] == gamma and cv_results['params'][i]['C'] == c]
+            test_errors.append(1 - mean_test_score[0])
+
+        plt.plot(c_values, test_errors, marker='o', label=f'Gamma={gamma}')
+        plt.title(title)
+        plt.xlabel('C')
+        plt.ylabel('Test Error')
+        plt.xscale('log')
+        plt.legend()
+        plt.grid()
+        plt.show()
+
 def random_grid_search(train_path, test_path, results_file):
     processor = DatasetProcessor()
     df_train, df_test = processor.load_dataset(train_path, test_path)
@@ -51,8 +93,8 @@ def random_grid_search(train_path, test_path, results_file):
     model = SVC()
     param_distributions = {
         'kernel': ['linear', 'rbf'],
-        'C': np.random.uniform(0.1, 10, 20),
-        'gamma': np.random.uniform(0.01, 1, 20)
+        'C': uniform(0.1, 10),
+        'gamma': uniform(0.01, 1)
     }
 
     kfold = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -84,9 +126,10 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
     X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
 
     param_grid = {
-        'C': np.linspace(0.1, 10, num=10),
-        'kernel': ['linear', 'rbf'],
-        'gamma': np.linspace(0.01, 1, num=5)
+        'C': numpy.linspace(0.001, 10, num=20),
+        'kernel': ['linear', 'rbf', 'poly'],
+        'gamma': numpy.linspace(0.001, 1, num=20),
+        'degree': [2, 3]
     }
 
     outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -94,10 +137,8 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
 
     model = SVC()
     nested_scores = []
-    best_params_list = []
 
-    fig, axs = plt.subplots(5, 1, figsize=(10, 30))
-    for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(X_train, y_train), start=1):
+    for train_idx, val_idx in outer_cv.split(X_train, y_train):
         X_train_fold, X_val_fold = X_train[train_idx], X_train[val_idx]
         y_train_fold, y_val_fold = y_train[train_idx], y_train[val_idx]
 
@@ -106,102 +147,25 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
             param_grid=param_grid,
             cv=inner_cv,
             scoring='accuracy',
-            n_jobs=-1,
-            verbose=1
+            n_jobs=-1
         )
         grid_search.fit(X_train_fold, y_train_fold)
 
         best_params = grid_search.best_params_
-        best_params_list.append(best_params)
         best_model = grid_search.best_estimator_
         val_score = best_model.score(X_val_fold, y_val_fold)
         nested_scores.append(val_score)
 
-        results = grid_search.cv_results_
-        gamma_values = np.array(results['param_gamma'], dtype=float)
-        mean_test_scores = np.array(results['mean_test_score'])
-
-        ax = axs[fold_idx - 1]
-        ax.plot(gamma_values, mean_test_scores, marker='o', linestyle='-', color='b')
-        ax.set_title(f"Fold {fold_idx}: Validation Accuracy for Different Gamma Values")
-        ax.set_xlabel(r"$\gamma$")
-        ax.set_ylabel("Validation Accuracy")
-        ax.set_xscale("log")
-        ax.grid(True)
-
-    plt.tight_layout()
-    plt.show()
-
     results_file.write(f"\nNested CV Validation Scores: {nested_scores}\n")
-    results_file.write(f"Mean Nested CV Validation Score: {np.mean(nested_scores)}\n")
-    results_file.write(f"Best Parameters Across Folds: {best_params_list}\n")
-
-    # Selezione del modello finale
-    final_params = best_params_list[np.argmax(nested_scores)]
-    print("\nParametri finali selezionati:", final_params)
+    results_file.write(f"Media Nested CV Validation Score: {np.mean(nested_scores)}\n")
 
     final_model = SVC(**grid_search.best_params_)
     final_model.fit(X_train, y_train)
+
     y_test_pred = final_model.predict(X_test)
-    results_file.write("\nClassification Report on Test Set:\n")
+    results_file.write("\nReport di classificazione sul Test Set:\n")
     results_file.write(classification_report(y_test, y_test_pred) + "\n")
-    results_file.write(f"Test Set Accuracy: {accuracy_score(y_test, y_test_pred)}\n")
-
-    # addestramento del modello con feature ridotti DA CONTROLLARE
-    # Riduci i dati a 2 dimensioni per il plot
-    pca = PCA(n_components=2)
-    x_train_pca = pca.fit_transform(X_train)
-    x_test_pca = pca.transform(X_test)
-
-    # Addestra il modello sull'intero dataset (6 feature originali)
-    final_model = SVC(**final_params)
-    final_model.fit(x_train_pca, y_train)
-
-    # Genera una griglia nello spazio ridotto (2D PCA)
-    x_min, x_max = x_train_pca[:, 0].min() - 1, x_train_pca[:, 0].max() + 1
-    y_min, y_max = x_train_pca[:, 1].min() - 1, x_train_pca[:, 1].max() + 1
-    xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.01),
-                         np.arange(y_min, y_max, 0.01))
-
-    # Predici valori per la griglia (proiezione inversa PCA)
-    # grid_pca = pca.inverse_transform(np.c_[xx.ravel(), yy.ravel()])
-
-    grid_pca = np.c_[xx.ravel(), yy.ravel()]
-    Z = final_model.predict(grid_pca)
-    Z = Z.reshape(xx.shape)
-
-    # Plot della griglia e dei punti
-    plt.contourf(xx, yy, Z, alpha=0.8, cmap=plt.cm.rainbow)
-    plt.scatter(x_train_pca[:, 0], x_train_pca[:, 1], c=y_train, edgecolors='k', s=50, cmap=plt.cm.coolwarm)
-
-    plt.xlabel('PCA Feature 1')
-    plt.ylabel('PCA Feature 2')
-    plt.title(f'SVC con kernel {final_params["kernel"]} e gamma={final_params.get("gamma", "auto")}')
-    plt.show()
-
-
-def main():
-    datasets = [
-        ('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
-        ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
-        ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
-    ]
-
-    # Apri il file in modalità scrittura
-    with open("SVM_results.txt", "w") as results_file:
-        for train_path, test_path in datasets:
-            results_file.write(f"\n--- Esecuzione di Grid Search per il dataset {train_path} ---\n")
-            grid_search(train_path, test_path, results_file)
-            results_file.write("\n" + "-" * 50 + "\n")
-
-            results_file.write(f"\n--- Esecuzione di Randomized Grid Search per il dataset {train_path} ---\n")
-            random_grid_search(train_path, test_path, results_file)
-            results_file.write("\n" + "-" * 50 + "\n")
-
-            results_file.write(f"\n--- Esecuzione di Nested Grid Search per il dataset {train_path} ---\n")
-            nested_grid_search_kfold(train_path, test_path, results_file)
-            results_file.write("\n" + "-" * 50 + "\n")
-
+    results_file.write(f"Accuratezza sul Test Set: {accuracy_score(y_test, y_test_pred)}\n")
 
 if __name__ == "__main__":
     main()
