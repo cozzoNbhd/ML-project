@@ -1,6 +1,7 @@
 # Ignora le cartelle dei virtual environments
 venv/
 env/
+/ml
 
 # Ignora i file di cache di Python
 __pycache__/
@@ -15,3 +16,4 @@ __pycache__/
 
 # Ignora le librerie installate
 *.egg-info/
+
