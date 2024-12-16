@@ -52,7 +52,7 @@ def train_neural_network(train_path, test_path):
 
     # Compilazione del modello
     model.compile(
-        optimizer=Adam(learning_rate=0.011, momentum = 0.9),  # Ottimizzatore SGD
+        optimizer=SGD(learning_rate=0.011, momentum = 0.9),  # Ottimizzatore SGD
         loss=BinaryCrossentropy(),         # Loss Binary Cross Entropy
         metrics=['accuracy'] ,              # Metrica Accuracy
         
@@ -203,7 +203,7 @@ def main():
         ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
     ]
     for train_path, test_path in datasets:
-        train_neural_network3(train_path, test_path)
+        model, hist = train_neural_network(train_path, test_path)
         # Visualizza la curva di apprendimento
         plt.plot(hist.history['accuracy'], label='Train Accuracy')
         plt.plot(hist.history['val_accuracy'], label='Validation Accuracy')
