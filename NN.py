@@ -1,6 +1,7 @@
 import numpy
+import numpy as np
 from keras import Sequential
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping,LearningRateScheduler
 from keras.layers import Dense, BatchNormalization, CategoryEncoding, Flatten,Input
 from tensorflow.keras.models import Model
 from keras.losses import BinaryCrossentropy
@@ -24,7 +25,7 @@ def train_neural_network(train_path, test_path):
 
     # Dividi i dati di training in train e validation
     X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.3, random_state=42)
-    
+
     num_tokens = int(numpy.max(X_train) + 1)  # Numero di categorie (es. 4: 0, 1, 2, 3)
 
     # Applicazione di One-Hot Encoding su X_train, X_val e X_test
@@ -44,9 +45,9 @@ def train_neural_network(train_path, test_path):
     # Creazione del modello
     model = Sequential([
         Dense(64, activation='relu', input_shape=(X_train_encoded.shape[1],),  kernel_regularizer=regularizers.L2(0.01)),  # Primo strato nascosto
-        
+
         Dense(32, activation='relu', kernel_regularizer=regularizers.L2(0.01)),  # Secondo strato nascosto
-      
+
         Dense(1, activation='sigmoid')  # Strato di output con sigmoid
     ])
 
@@ -55,7 +56,7 @@ def train_neural_network(train_path, test_path):
         optimizer=SGD(learning_rate=0.011, momentum = 0.9),  # Ottimizzatore SGD
         loss=BinaryCrossentropy(),         # Loss Binary Cross Entropy
         metrics=['accuracy'] ,              # Metrica Accuracy
-        
+
     )
 
     # Definizione del callback per early stopping
@@ -81,119 +82,102 @@ def train_neural_network(train_path, test_path):
 
     return model, hist
 
-def train_neural_network3(train_path, test_path):
+
+def linear_decay_schedule(initial_lr, final_lr, total_epochs):
+    """
+    Restituisce una funzione che implementa il learning rate decay lineare.
+
+    Args:
+        initial_lr (float): Learning rate iniziale.
+        final_lr (float): Learning rate finale.
+        total_epochs (int): Numero totale di epoche.
+
+    Returns:
+        function: Funzione da usare nel callback LearningRateScheduler.
+    """
+    def scheduler(epoch, lr):
+        new_lr = initial_lr - (epoch / total_epochs) * (initial_lr - final_lr)
+        return max(new_lr, final_lr)
+    return scheduler
+
+def train_neural_network_with_grid_search(train_path, test_path, params):
+    # Parametri di input
+    learning_rates = params.get('learning_rates', [0.001])
+    batch_sizes = params.get('batch_sizes', [32])
+    num_units = params.get('num_units', [64])
+    epochs = params.get('epochs', 50)
+    patience = params.get('patience', 15)
+    optimizer_choice = params.get('optimizer', 'adam')
+    regularization = params.get('regularization', 0.01)
+    final_lr = params.get('final_lr', 0.0001)  # Learning rate minimo finale
 
     # Caricamento e preprocessing dei dati
     processor = DatasetProcessor()
     df_train, df_test = processor.load_dataset(train_path, test_path)
-
     X_train_full, y_train_full, X_test, y_test = processor.preprocess_data(df_train, df_test)
-    # Dividi i dati di training in train e validation
     X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.3, random_state=42)
-    #X_train=[1,2,3,4]
-    # Numero massimo di categorie (num_tokens)
-    num_tokens = int(numpy.max(X_train) + 1)  # Numero di categorie (es. 4: 0, 1, 2, 3)
 
-    # Applicazione di One-Hot Encoding su X_train, X_val e X_test
-    encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
-    X_train_encoded = encoding_layer(X_train).numpy()
-    X_val_encoded = encoding_layer(X_val).numpy()
-    X_test_encoded = encoding_layer(X_test).numpy()
+    # Encoding delle feature
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_val_list.append(encoding_layer(X_val[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
 
-    # Appiattisci i dati codificati per renderli bidimensionali
-    X_train_encoded = X_train_encoded.reshape(X_train_encoded.shape[0], -1)
-    X_val_encoded = X_val_encoded.reshape(X_val_encoded.shape[0], -1)
-    X_test_encoded = X_test_encoded.reshape(X_test_encoded.shape[0], -1)
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_val_encoded = np.concatenate(encoded_val_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
 
-
-    # Controllo delle forme dopo il One-Hot Encoding
-    print(f"X_train_encoded shape: {X_train_encoded.shape}")
-    print(f"X_val_encoded shape: {X_val_encoded.shape}")
-    print(f"X_test_encoded shape: {X_test_encoded.shape}")
-
-    # Definisci i range per gli iperparametri
-    learning_rates = numpy.arange(0.001, 0.1, 0.01)  # E.g., da 0.001 a 0.1 con step di 0.01
-    batch_sizes = [16, 32, 64]  # I valori discreti sono ancora utili per il batch size
-    num_units = numpy.arange(64, 256, 64)  # E.g., 64, 128, 192
-
-    # Lista per salvare i risultati
+    # Ricerca della miglior combinazione di iperparametri
     results = []
-
-    # Ciclo per tutte le combinazioni degli iperparametri
     for lr, batch_size, units in itertools.product(learning_rates, batch_sizes, num_units):
-        print(f"Testing combination: LR={lr}, Batch={batch_size}, Units={units}")
-        
-        # Crea il modello
+        if optimizer_choice.lower() == 'adam':
+            optimizer = Adam(learning_rate=lr)
+        elif optimizer_choice.lower() == 'sgd':
+            optimizer = SGD(learning_rate=lr, momentum=0.9)
+
         model = Sequential([
-            Dense(units, activation='relu', input_shape=(X_train_encoded.shape[1],)),
+            Dense(units, activation='relu', input_shape=(X_train_encoded.shape[1],),
+                  kernel_regularizer=regularizers.L2(regularization)),
             Dense(units // 2, activation='relu'),
             Dense(1, activation='sigmoid')
         ])
-        model.compile(
-            optimizer=Adam(learning_rate=lr),
-            loss=BinaryCrossentropy(),
-            metrics=['accuracy']
-        )
-        
-        # Addestra il modello
-        hist = model.fit(
-            X_train_encoded, y_train,
-            epochs=20,
-            batch_size=batch_size,
-            validation_data=(X_val_encoded, y_val),
-            verbose=0
-        )
-        
-        # Salva i risultati
+        model.compile(optimizer=optimizer, loss=BinaryCrossentropy(), metrics=['accuracy'])
+
+        # Callback per learning rate decay lineare
+        lr_scheduler = LearningRateScheduler(linear_decay_schedule(lr, final_lr, epochs))
+        early_stopping = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)
+        hist = model.fit(X_train_encoded, y_train, epochs=20, batch_size=batch_size,
+                         validation_data=(X_val_encoded, y_val), verbose=0, callbacks=[lr_scheduler, early_stopping])
         val_accuracy = max(hist.history['val_accuracy'])
         results.append((lr, batch_size, units, val_accuracy))
 
-    # Ordina i risultati per val_accuracy
-    sorted_results = sorted(results, key=lambda x: x[3], reverse=True)
-    print("Best combination:", sorted_results[0])
+    # Selezione dei migliori iperparametri
+    best_lr, best_batch, best_units, _ = sorted(results, key=lambda x: x[3], reverse=True)[0]
+    print(f"Migliori iperparametri: LR={best_lr}, Batch={best_batch}, Units={best_units}")
 
-
-
-    """
-
-    # Creazione del modello Keras
-     
-    
-    # Creazione del modello
+    # Addestramento finale
+    optimizer = Adam(learning_rate=best_lr) if optimizer_choice.lower() == 'adam' else SGD(learning_rate=best_lr,
+                                                                                           momentum=0.9)
     model = Sequential([
-        Dense(64, activation='relu', input_shape=(X_train_encoded.shape[1],)),  # Primo strato nascosto
-        Dense(32, activation='relu'),  # Secondo strato nascosto
-        Dense(1, activation='sigmoid')  # Strato di output con sigmoid
+        Dense(best_units, activation='relu', input_shape=(X_train_encoded.shape[1],),
+              kernel_regularizer=regularizers.L2(regularization)),
+        Dense(best_units // 2, activation='relu', kernel_regularizer=regularizers.L2(regularization)),
+        Dense(1, activation='sigmoid')
     ])
-   
-    #ALTRO MODO PER SCRIVERE MODELLI 
-    #input_layer = Input(shape=(X_train_encoded.shape[1],))
-    #dense3 = Dense(128, activation='relu')(input_layer)  # Terzo strato denso
-    #dense2 = Dense(32, activation='relu')(dense3)
-    #output_layer = Dense(1, activation='sigmoid')(dense2)  # Strato di output per classificazione binaria
-    #model = Model(inputs=input_layer, outputs=output_layer)
+    model.compile(optimizer=optimizer, loss=BinaryCrossentropy(), metrics=['accuracy'])
+    hist = model.fit(X_train_encoded, y_train, epochs=epochs, batch_size=best_batch,
+                     validation_data=(X_val_encoded, y_val), callbacks=[early_stopping], verbose=1)
 
-    # Compilazione del modello
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),  # Ottimizzatore Adam
-        loss=BinaryCrossentropy(),           # Loss Binary Cross Entropy
-        metrics=['accuracy']                 # Metrica Accuracy
-    )
 
-    # Addestramento del modello
-    hist = model.fit(
-        X_train_encoded, y_train,
-        epochs=100,  # Ridotto a 50 per velocità
-        batch_size=32,
-        validation_data=(X_val_encoded, y_val),
-    )
-
-    # Valutazione del modello
+    # Valutazione finale
     loss, accuracy = model.evaluate(X_test_encoded, y_test)
     print(f"Test Loss: {loss}")
     print(f"Test Accuracy: {accuracy}")
 
-    return model, hist"""
+    return model, hist
 
 
 def main():
@@ -202,21 +186,41 @@ def main():
         ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
         ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
     ]
+
+    # Configurazione dei parametri
+    params = {
+        'learning_rates': [0.001, 0.01, 0.1],
+        'batch_sizes': [16, 32, 64],
+        'num_units': [16, 32, 64, 128],
+        'epochs': 100,
+        'patience': 20,
+        'optimizer': 'sgd',
+        'regularization': 0.001,
+        'final_lr': 0.0001
+    }
+
     for train_path, test_path in datasets:
-        model, hist = train_neural_network(train_path, test_path)
-        # Visualizza la curva di apprendimento
+        model, hist = train_neural_network_with_grid_search(train_path, test_path, params)
+
+        # Grafico Accuracy
+        plt.figure()
         plt.plot(hist.history['accuracy'], label='Train Accuracy')
         plt.plot(hist.history['val_accuracy'], label='Validation Accuracy')
         plt.xlabel('Epochs')
         plt.ylabel('Accuracy')
         plt.legend()
+        plt.title(f"Accuracy for {train_path}")
         plt.show()
-        plt.plot(hist.history['loss'], label='Train loss')
+
+        # Grafico Loss
+        plt.figure()
+        plt.plot(hist.history['loss'], label='Train Loss')
         plt.plot(hist.history['val_loss'], label='Validation Loss')
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.show()   
+        plt.title(f"Loss for {train_path}")
+        plt.show()
 
 if __name__ == "__main__":
     main()
