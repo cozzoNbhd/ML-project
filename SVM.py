@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
 
 from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
-
+from sklearn.ensemble import BaggingClassifier
 import pandas as pd
 from sklearn.preprocessing import normalize
 import numpy as np
@@ -15,6 +15,48 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import cross_val_score
 import scipy.stats as stats
 from scipy.stats import uniform
+
+def ensamble_SVM1(train_path, test_path, results_file):
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+    X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
+    # Modello Bagging con SVM
+    base_model = SVC()
+    bagging_model = BaggingClassifier(base_model, n_estimators=10, random_state=42)
+
+    # Creazione dell'istanza di KFold
+    kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+
+    gs_cv = GridSearchCV(
+    estimator=bagging_model,
+    param_grid={
+        'estimator__kernel': ('linear', 'rbf', 'poly', 'sigmoid'),  # Cambiato da base_estimator__ a estimator__
+        'estimator__C': [0.1, 1, 5, 10],
+        'estimator__gamma': [0.001, 0.005, 0.01, 0.05, 0.1, 1]
+    },
+    cv=kfold,  # Passa l'istanza di KFold
+    scoring="accuracy",
+    n_jobs=-1,
+    return_train_score=True,
+    verbose=1
+    )
+
+    gs_cv.fit(X_train_encoded, y_train)
+
+    results_file.write(f"Migliori parametri: {gs_cv.best_params_}\n")
+    results_file.write(f"Miglior punteggio (cross-validation): {gs_cv.best_score_}\n")
+
 
 def grid_search(train_path, test_path, results_file):
     processor = DatasetProcessor()
@@ -231,6 +273,10 @@ def main():
 
             results_file.write(f"\n--- Esecuzione di Nested Grid Search per il dataset {train_path} ---\n")
             nested_grid_search_kfold(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
+
+            results_file.write(f"\n--- Esecuzione di Ensamble(bagging) per il dataset {train_path} ---\n")
+            ensamble_SVM1(train_path, test_path, results_file)
             results_file.write("\n" + "-" * 50 + "\n")
 
 

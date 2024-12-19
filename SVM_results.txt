@@ -18,7 +18,7 @@ Accuratezza sul set di test: 1.0
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-1.train ---
-Migliori parametri: {'kernel': 'poly', 'gamma': 0.283182701130679, 'C': 3.4540403125104615}
+Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.9767131988031044), 'C': np.float64(0.9550357705111094)}
 Miglior punteggio (cross-validation): 0.9833333333333334
 
  Report di classificazione:
@@ -39,7 +39,7 @@ Accuratezza sul set di test: 1.0
 
 Nested CV Validation Scores: [0.96, 0.92, 0.96, 0.96, 0.9583333333333334]
 Mean Nested CV Validation Score: 0.9516666666666665
-Best Parameters Across Folds: [{'C': 4.5, 'gamma': 0.2575, 'kernel': 'rbf'}, {'C': 0.1, 'gamma': 0.7525, 'kernel': 'poly'}, {'C': 0.1, 'gamma': 0.7525, 'kernel': 'poly'}, {'C': 0.1, 'gamma': 0.7525, 'kernel': 'poly'}, {'C': 0.1, 'gamma': 0.7525, 'kernel': 'poly'}]
+Best Parameters Across Folds: [{'C': np.float64(4.5), 'gamma': np.float64(0.2575), 'kernel': 'rbf'}, {'C': np.float64(0.1), 'gamma': np.float64(0.7525), 'kernel': 'poly'}, {'C': np.float64(0.1), 'gamma': np.float64(0.7525), 'kernel': 'poly'}, {'C': np.float64(0.1), 'gamma': np.float64(0.7525), 'kernel': 'poly'}, {'C': np.float64(0.1), 'gamma': np.float64(0.7525), 'kernel': 'poly'}]
 
 Classification Report on Test Set:
               precision    recall  f1-score   support
@@ -52,6 +52,12 @@ Classification Report on Test Set:
 weighted avg       1.00      1.00      1.00       432
 
 Test Set Accuracy: 1.0
+
+--------------------------------------------------
+
+--- Esecuzione di Ensamble(bagging) per il dataset ./datasets/monk/monks-1.train ---
+Migliori parametri: {'estimator__C': 10, 'estimator__gamma': 0.1, 'estimator__kernel': 'rbf'}
+Miglior punteggio (cross-validation): 0.9516666666666665
 
 --------------------------------------------------
 
@@ -74,20 +80,20 @@ Accuratezza sul set di test: 0.7060185185185185
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-2.train ---
-Migliori parametri: {'kernel': 'poly', 'gamma': 0.3667817886304981, 'C': 0.5531687931048693}
-Miglior punteggio (cross-validation): 0.669162210338681
+Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.1394587533253842), 'C': np.float64(7.076793458924106)}
+Miglior punteggio (cross-validation): 0.6632798573975045
 
  Report di classificazione:
               precision    recall  f1-score   support
 
-           0       0.83      0.75      0.79       290
-           1       0.58      0.70      0.63       142
+           0       0.83      0.73      0.78       290
+           1       0.56      0.70      0.62       142
 
-    accuracy                           0.73       432
-   macro avg       0.71      0.72      0.71       432
-weighted avg       0.75      0.73      0.74       432
+    accuracy                           0.72       432
+   macro avg       0.70      0.72      0.70       432
+weighted avg       0.74      0.72      0.73       432
 
-Accuratezza sul set di test: 0.7314814814814815
+Accuratezza sul set di test: 0.7222222222222222
 
 --------------------------------------------------
 
@@ -95,7 +101,7 @@ Accuratezza sul set di test: 0.7314814814814815
 
 Nested CV Validation Scores: [0.7058823529411765, 0.7352941176470589, 0.6470588235294118, 0.7352941176470589, 0.7575757575757576]
 Mean Nested CV Validation Score: 0.7162210338680927
-Best Parameters Across Folds: [{'C': 0.1, 'gamma': 1.0, 'kernel': 'poly'}, {'C': 3.4000000000000004, 'gamma': 0.2575, 'kernel': 'poly'}, {'C': 0.1, 'gamma': 1.0, 'kernel': 'poly'}, {'C': 3.4000000000000004, 'gamma': 0.2575, 'kernel': 'poly'}, {'C': 0.1, 'gamma': 0.7525, 'kernel': 'poly'}]
+Best Parameters Across Folds: [{'C': np.float64(0.1), 'gamma': np.float64(1.0), 'kernel': 'poly'}, {'C': np.float64(3.4000000000000004), 'gamma': np.float64(0.2575), 'kernel': 'poly'}, {'C': np.float64(0.1), 'gamma': np.float64(1.0), 'kernel': 'poly'}, {'C': np.float64(3.4000000000000004), 'gamma': np.float64(0.2575), 'kernel': 'poly'}, {'C': np.float64(0.1), 'gamma': np.float64(0.7525), 'kernel': 'poly'}]
 
 Classification Report on Test Set:
               precision    recall  f1-score   support
@@ -108,6 +114,12 @@ Classification Report on Test Set:
 weighted avg       0.76      0.75      0.75       432
 
 Test Set Accuracy: 0.7453703703703703
+
+--------------------------------------------------
+
+--- Esecuzione di Ensamble(bagging) per il dataset ./datasets/monk/monks-2.train ---
+Migliori parametri: {'estimator__C': 0.1, 'estimator__gamma': 1, 'estimator__kernel': 'poly'}
+Miglior punteggio (cross-validation): 0.6572192513368984
 
 --------------------------------------------------
 
@@ -130,7 +142,7 @@ Accuratezza sul set di test: 0.9722222222222222
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-3.train ---
-Migliori parametri: {'kernel': 'sigmoid', 'gamma': 0.03832249453931914, 'C': 8.7022820320962}
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.8727849012304573), 'C': np.float64(6.646039302188804)}
 Miglior punteggio (cross-validation): 0.9339999999999999
 
  Report di classificazione:
@@ -151,7 +163,7 @@ Accuratezza sul set di test: 0.9722222222222222
 
 Nested CV Validation Scores: [1.0, 0.88, 0.9583333333333334, 0.875, 0.9583333333333334]
 Mean Nested CV Validation Score: 0.9343333333333333
-Best Parameters Across Folds: [{'C': 1.2000000000000002, 'gamma': 0.01, 'kernel': 'linear'}, {'C': 1.2000000000000002, 'gamma': 0.01, 'kernel': 'linear'}, {'C': 0.1, 'gamma': 0.01, 'kernel': 'linear'}, {'C': 1.2000000000000002, 'gamma': 0.01, 'kernel': 'linear'}, {'C': 1.2000000000000002, 'gamma': 0.01, 'kernel': 'linear'}]
+Best Parameters Across Folds: [{'C': np.float64(1.2000000000000002), 'gamma': np.float64(0.01), 'kernel': 'linear'}, {'C': np.float64(1.2000000000000002), 'gamma': np.float64(0.01), 'kernel': 'linear'}, {'C': np.float64(0.1), 'gamma': np.float64(0.01), 'kernel': 'linear'}, {'C': np.float64(1.2000000000000002), 'gamma': np.float64(0.01), 'kernel': 'linear'}, {'C': np.float64(1.2000000000000002), 'gamma': np.float64(0.01), 'kernel': 'linear'}]
 
 Classification Report on Test Set:
               precision    recall  f1-score   support
@@ -164,5 +176,11 @@ Classification Report on Test Set:
 weighted avg       0.97      0.97      0.97       432
 
 Test Set Accuracy: 0.9722222222222222
+
+--------------------------------------------------
+
+--- Esecuzione di Ensamble(bagging) per il dataset ./datasets/monk/monks-3.train ---
+Migliori parametri: {'estimator__C': 0.1, 'estimator__gamma': 0.001, 'estimator__kernel': 'linear'}
+Miglior punteggio (cross-validation): 0.9339999999999999
 
 --------------------------------------------------
