@@ -1,4 +1,5 @@
 import numpy
+from keras.layers import CategoryEncoding
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
 
@@ -20,7 +21,17 @@ def grid_search(train_path, test_path, results_file):
     df_train, df_test = processor.load_dataset(train_path, test_path)
     X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
 
-    parameters = {'kernel': ('linear', 'rbf'), 'C': [0.1, 1, 5, 10], "gamma": [0.001, 0.01, 0.1, 1]}
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i])+1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
+    parameters = {'kernel': ('linear', 'rbf', 'poly', 'sigmoid'), 'C': [0.1, 1, 5, 10], "gamma": [0.001, 0.005, 0.01, 0.05, 0.1, 1]}
     kfold = KFold(n_splits=5, shuffle=True, random_state=42)
     model = SVC()
     gs_cv = GridSearchCV(estimator=model,
@@ -31,13 +42,13 @@ def grid_search(train_path, test_path, results_file):
                          return_train_score=True,
                          verbose=1)
 
-    gs_cv.fit(X_train, y_train)
+    gs_cv.fit(X_train_encoded, y_train)
 
     results_file.write(f"Migliori parametri: {gs_cv.best_params_}\n")
     results_file.write(f"Miglior punteggio (cross-validation): {gs_cv.best_score_}\n")
 
     best_model = gs_cv.best_estimator_
-    y_pred = best_model.predict(X_test)
+    y_pred = best_model.predict(X_test_encoded)
 
     results_file.write("\n Report di classificazione:\n")
     results_file.write(classification_report(y_test, y_pred) + "\n")
@@ -48,9 +59,19 @@ def random_grid_search(train_path, test_path, results_file):
     df_train, df_test = processor.load_dataset(train_path, test_path)
     X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
 
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
     model = SVC()
     param_distributions = {
-        'kernel': ['linear', 'rbf'],
+        'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
         'C': np.random.uniform(0.1, 10, 20),
         'gamma': np.random.uniform(0.01, 1, 20)
     }
@@ -66,13 +87,13 @@ def random_grid_search(train_path, test_path, results_file):
         return_train_score=True
     )
 
-    rs_cv.fit(X_train, y_train)
+    rs_cv.fit(X_train_encoded, y_train)
 
     results_file.write(f"Migliori parametri: {rs_cv.best_params_}\n")
     results_file.write(f"Miglior punteggio (cross-validation): {rs_cv.best_score_}\n")
 
     best_model = rs_cv.best_estimator_
-    y_pred = best_model.predict(X_test)
+    y_pred = best_model.predict(X_test_encoded)
 
     results_file.write("\n Report di classificazione:\n")
     results_file.write(classification_report(y_test, y_pred) + "\n")
@@ -83,9 +104,19 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
     df_train, df_test = processor.load_dataset(train_path, test_path)
     X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
 
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
     param_grid = {
         'C': np.linspace(0.1, 10, num=10),
-        'kernel': ['linear', 'rbf'],
+        'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
         'gamma': np.linspace(0.01, 1, num=5)
     }
 
@@ -97,8 +128,8 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
     best_params_list = []
 
     fig, axs = plt.subplots(5, 1, figsize=(10, 30))
-    for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(X_train, y_train), start=1):
-        X_train_fold, X_val_fold = X_train[train_idx], X_train[val_idx]
+    for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(X_train_encoded, y_train), start=1):
+        X_train_fold, X_val_fold = X_train_encoded[train_idx], X_train_encoded[val_idx]
         y_train_fold, y_val_fold = y_train[train_idx], y_train[val_idx]
 
         grid_search = GridSearchCV(
@@ -141,8 +172,8 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
     print("\nParametri finali selezionati:", final_params)
 
     final_model = SVC(**grid_search.best_params_)
-    final_model.fit(X_train, y_train)
-    y_test_pred = final_model.predict(X_test)
+    final_model.fit(X_train_encoded, y_train)
+    y_test_pred = final_model.predict(X_test_encoded)
     results_file.write("\nClassification Report on Test Set:\n")
     results_file.write(classification_report(y_test, y_test_pred) + "\n")
     results_file.write(f"Test Set Accuracy: {accuracy_score(y_test, y_test_pred)}\n")
@@ -150,8 +181,8 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
     # addestramento del modello con feature ridotti DA CONTROLLARE
     # Riduci i dati a 2 dimensioni per il plot
     pca = PCA(n_components=2)
-    x_train_pca = pca.fit_transform(X_train)
-    x_test_pca = pca.transform(X_test)
+    x_train_pca = pca.fit_transform(X_train_encoded)
+    x_test_pca = pca.transform(X_test_encoded)
 
     # Addestra il modello sull'intero dataset (6 feature originali)
     final_model = SVC(**final_params)
