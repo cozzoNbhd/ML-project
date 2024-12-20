@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 
 class DatasetProcessor:
     """
@@ -45,3 +47,11 @@ class DatasetProcessor:
         y_test = y_test.to_numpy()
 
         return X_train, y_train, X_test, y_test
+    
+    def normalize_data(self, X_train, X_test):
+
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        return X_train_scaled, X_test_scaled

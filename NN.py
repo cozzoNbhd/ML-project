@@ -1,9 +1,10 @@
 import numpy
+import tensorflow
 from keras import Sequential
 from keras.callbacks import EarlyStopping
-from keras.layers import Dense
-from keras.losses import BinaryCrossentropy
-from keras.optimizers import SGD
+from keras.layers import Dense, Dropout
+from keras.losses import BinaryCrossentropy, MeanSquaredError
+from keras.optimizers import SGD, RMSprop, Adam, Adagrad
 from sklearn.model_selection import train_test_split
 
 from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
@@ -14,20 +15,21 @@ def train_neural_network(train_path, test_path):
     df_train, df_test = processor.load_dataset(train_path, test_path)
 
     X_train_full, y_train_full, X_test, y_test = processor.preprocess_data(df_train, df_test)
-
+    X_train_fscaled, X_test_fscaled = processor.normalize_data(X_train_full, X_test)
     # Dividi i dati di training in train e validation
     X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.3, random_state=42)
 
     # Creazione del modello
     model = Sequential([
-        Dense(64, activation='relu', input_shape=(X_train.shape[1],)),  # Primo strato nascosto
-        Dense(32, activation='relu'),  # Secondo strato nascosto
+        Dense(32, activation='tanh'),
+        Dropout(0.5),  # Primo strato nascosto
+        Dense(32, activation='tanh'), # Secondo strato nascosto
         Dense(1, activation='sigmoid')  # Strato di output con sigmoid
     ])
 
     # Compilazione del modello
     model.compile(
-        optimizer=SGD(learning_rate=0.01, momentum=0.9),  # Ottimizzatore SGD
+        optimizer=RMSprop(learning_rate=0.01, momentum=0.9),  # Ottimizzatore SGD
         loss=BinaryCrossentropy(),         # Loss Binary Cross Entropy
         metrics=['accuracy']               # Metrica Accuracy
     )
@@ -35,15 +37,16 @@ def train_neural_network(train_path, test_path):
     # Definizione del callback per early stopping
     early_stopping = EarlyStopping(
         monitor='val_loss',  # Monitoriamo la perdita sulla validazione
-        patience=100,  # Numero di epoche da aspettare senza miglioramenti
+        patience=70,  # Numero di epoche da aspettare senza miglioramenti
         restore_best_weights=True  # Ripristina i pesi migliori al termine
     )
 
     # Addestramento del modello
     model.fit(
         X_train, y_train,
-        epochs=500,
-        batch_size=16,
+        epochs=350,
+        batch_size=24,
+        #verbose=0,
         validation_data=(X_val, y_val),
         #callbacks=[early_stopping]
     )
