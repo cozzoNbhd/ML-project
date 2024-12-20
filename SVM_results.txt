@@ -18,7 +18,7 @@ Accuratezza sul set di test: 1.0
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-1.train ---
-Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.9767131988031044), 'C': np.float64(0.9550357705111094)}
+Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.7985255064358154), 'C': np.float64(9.42415273826904)}
 Miglior punteggio (cross-validation): 0.9833333333333334
 
  Report di classificazione:
@@ -80,20 +80,20 @@ Accuratezza sul set di test: 0.7060185185185185
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-2.train ---
-Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.1394587533253842), 'C': np.float64(7.076793458924106)}
-Miglior punteggio (cross-validation): 0.6632798573975045
+Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.36629944241326184), 'C': np.float64(2.254207493690807)}
+Miglior punteggio (cross-validation): 0.651693404634581
 
  Report di classificazione:
               precision    recall  f1-score   support
 
-           0       0.83      0.73      0.78       290
-           1       0.56      0.70      0.62       142
+           0       0.88      0.77      0.82       290
+           1       0.62      0.77      0.69       142
 
-    accuracy                           0.72       432
-   macro avg       0.70      0.72      0.70       432
-weighted avg       0.74      0.72      0.73       432
+    accuracy                           0.77       432
+   macro avg       0.75      0.77      0.76       432
+weighted avg       0.79      0.77      0.78       432
 
-Accuratezza sul set di test: 0.7222222222222222
+Accuratezza sul set di test: 0.7731481481481481
 
 --------------------------------------------------
 
@@ -142,7 +142,7 @@ Accuratezza sul set di test: 0.9722222222222222
 --------------------------------------------------
 
 --- Esecuzione di Randomized Grid Search per il dataset ./datasets/monk/monks-3.train ---
-Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.8727849012304573), 'C': np.float64(6.646039302188804)}
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.849512142055939), 'C': np.float64(3.6740678018386816)}
 Miglior punteggio (cross-validation): 0.9339999999999999
 
  Report di classificazione:
