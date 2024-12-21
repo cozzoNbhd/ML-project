@@ -1,6 +1,7 @@
 import numpy
 from keras.layers import CategoryEncoding
 from matplotlib import pyplot as plt
+from sklearn import metrics
 from sklearn.decomposition import PCA
 from collections import Counter
 from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
@@ -117,6 +118,13 @@ def oversamplingSVM (train_path, test_path, results_file):
     best_model = rs_cv.best_estimator_
     y_pred = best_model.predict(X_test_encoded)
 
+    confusion_matrix = metrics.confusion_matrix(y_test, y_pred)
+
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1])
+
+    cm_display.plot()
+    plt.show()
+
     results_file.write("\n Report di classificazione:\n")
     results_file.write(classification_report(y_test, y_pred) + "\n")
     results_file.write(f"Accuratezza sul set di test: {accuracy_score(y_test, y_pred)}\n")
@@ -196,9 +204,17 @@ def grid_search(train_path, test_path, results_file):
     best_model = gs_cv.best_estimator_
     y_pred = best_model.predict(X_test_encoded)
 
+    confusion_matrix = metrics.confusion_matrix(y_test, y_pred)
+
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1])
+
+    cm_display.plot()
+    plt.show()
+
     results_file.write("\n Report di classificazione:\n")
     results_file.write(classification_report(y_test, y_pred) + "\n")
     results_file.write(f"Accuratezza sul set di test: {accuracy_score(y_test, y_pred)}\n")
+
 
 def random_grid_search(train_path, test_path, results_file):
     processor = DatasetProcessor()
@@ -240,6 +256,13 @@ def random_grid_search(train_path, test_path, results_file):
 
     best_model = rs_cv.best_estimator_
     y_pred = best_model.predict(X_test_encoded)
+
+    confusion_matrix = metrics.confusion_matrix(y_test, y_pred)
+
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1])
+
+    cm_display.plot()
+    plt.show()
 
     results_file.write("\n Report di classificazione:\n")
     results_file.write(classification_report(y_test, y_pred) + "\n")
