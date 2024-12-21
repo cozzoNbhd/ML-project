@@ -2,7 +2,7 @@ import numpy
 from keras.layers import CategoryEncoding
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
-
+from collections import Counter
 from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
 from sklearn.ensemble import BaggingClassifier
 import pandas as pd
@@ -15,12 +15,116 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import cross_val_score
 import scipy.stats as stats
 from scipy.stats import uniform
+from imblearn.over_sampling import RandomOverSampler, SMOTE, BorderlineSMOTE, SVMSMOTE, KMeansSMOTE
+
+def FeatureEngineering (train_path, test_path, results_file):
+    #print(Counter(y_train))
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+    X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    #random_os = RandomOverSampler(random_state = 42)
+    #X_train, y_train = random_os.fit_resample(X_train, y_train)
+
+    from sklearn.preprocessing import PolynomialFeatures
+    poly = PolynomialFeatures(degree=2, interaction_only=True)
+    X_train_poly = poly.fit_transform(X_train)
+    X_test_poly = poly.transform(X_test)
+
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train_poly.shape[1]):
+        num_tokens = int(np.max(X_train_poly[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train_poly[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test_poly[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
+
+    model = SVC()
+    param_distributions = {
+        'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
+        'C': np.random.uniform(0.1, 10, 20),
+        'gamma': np.random.uniform(0.01, 1, 20)
+    }
+
+    kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+    rs_cv = RandomizedSearchCV(
+        estimator=model,
+        param_distributions=param_distributions,
+        n_jobs=-1,
+        cv=kfold,
+        scoring="accuracy",
+        random_state=42,
+        return_train_score=True
+    )
+
+    rs_cv.fit(X_train_encoded, y_train)
+
+    results_file.write(f"Migliori parametri AAAAAAAAAAAAAAAA: {rs_cv.best_params_}\n")
+    results_file.write(f"Miglior punteggio (cross-validation): {rs_cv.best_score_}\n")
+
+    best_model = rs_cv.best_estimator_
+    y_pred = best_model.predict(X_test_encoded)
+
+    results_file.write("\n Report di classificazione:\n")
+    results_file.write(classification_report(y_test, y_pred) + "\n")
+    results_file.write(f"Accuratezza sul set di test: {accuracy_score(y_test, y_pred)}\n")
+
+def oversamplingSVM (train_path, test_path, results_file):
+    #print(Counter(y_train))
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+    X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    random_os = RandomOverSampler(random_state = 42)
+    X_train, y_train = random_os.fit_resample(X_train, y_train)
+    encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
+    for i in range(X_train.shape[1]):
+        num_tokens = int(np.max(X_train[:, i]) + 1)
+        encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+        encoded_train_list.append(encoding_layer(X_train[:, i]).numpy())
+        encoded_test_list.append(encoding_layer(X_test[:, i]).numpy())
+
+    X_train_encoded = np.concatenate(encoded_train_list, axis=1)
+    X_test_encoded = np.concatenate(encoded_test_list, axis=1)
+
+
+    model = SVC()
+    param_distributions = {
+        'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
+        'C': np.random.uniform(0.1, 10, 20),
+        'gamma': np.random.uniform(0.01, 1, 20)
+    }
+
+    kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+    rs_cv = RandomizedSearchCV(
+        estimator=model,
+        param_distributions=param_distributions,
+        n_jobs=-1,
+        cv=kfold,
+        scoring="accuracy",
+        random_state=42,
+        return_train_score=True
+    )
+
+    rs_cv.fit(X_train_encoded, y_train)
+
+    results_file.write(f"Migliori parametri AAAAAAAAAAAAAAAA: {rs_cv.best_params_}\n")
+    results_file.write(f"Miglior punteggio (cross-validation): {rs_cv.best_score_}\n")
+
+    best_model = rs_cv.best_estimator_
+    y_pred = best_model.predict(X_test_encoded)
+
+    results_file.write("\n Report di classificazione:\n")
+    results_file.write(classification_report(y_test, y_pred) + "\n")
+    results_file.write(f"Accuratezza sul set di test: {accuracy_score(y_test, y_pred)}\n")
 
 def ensamble_SVM1(train_path, test_path, results_file):
     processor = DatasetProcessor()
     df_train, df_test = processor.load_dataset(train_path, test_path)
     X_train, y_train, X_test, y_test = processor.preprocess_data(df_train, df_test)
-
     encoded_train_list, encoded_val_list, encoded_test_list = [], [], []
     for i in range(X_train.shape[1]):
         num_tokens = int(np.max(X_train[:, i]) + 1)
@@ -255,9 +359,9 @@ def nested_grid_search_kfold(train_path, test_path, results_file):
 
 def main():
     datasets = [
-        ('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
+        #('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
         ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
-        ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
+        #('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
     ]
 
     # Apri il file in modalità scrittura
@@ -275,9 +379,19 @@ def main():
             nested_grid_search_kfold(train_path, test_path, results_file)
             results_file.write("\n" + "-" * 50 + "\n")
 
-            results_file.write(f"\n--- Esecuzione di Ensamble(bagging) per il dataset {train_path} ---\n")
+            results_file.write(f"\n--- Esecuzione di ENSAMBLE LEARNING per il dataset {train_path} ---\n")
             ensamble_SVM1(train_path, test_path, results_file)
             results_file.write("\n" + "-" * 50 + "\n")
+
+            results_file.write(f"\n--- Esecuzione di oversampling per il dataset {train_path} ---\n")
+            oversamplingSVM(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
+
+            results_file.write(f"\n--- Esecuzione di feature engeniring per il dataset {train_path} ---\n")
+            FeatureEngineering(train_path, test_path, results_file)
+            results_file.write("\n" + "-" * 50 + "\n")
+
+            
 
 
 if __name__ == "__main__":
