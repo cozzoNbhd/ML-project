@@ -413,6 +413,7 @@ def main():
     }
 
     # Configurazione dei parametri in caso di k-fold normale (parametri fissi)
+
     params = {
         'learning_rates': 0.001,
         'batch_sizes': 16,
