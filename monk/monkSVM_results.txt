@@ -1,0 +1,38 @@
+
+--- Esecuzione di Grid Search per il dataset ../datasets/monk/monks-1.train ---
+Migliori parametri: {'C': 10, 'gamma': 0.1, 'kernel': 'rbf'}
+Miglior punteggio (cross-validation): 1.0
+
+ Report di classificazione:
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00       216
+           1       1.00      1.00      1.00       216
+
+    accuracy                           1.00       432
+   macro avg       1.00      1.00      1.00       432
+weighted avg       1.00      1.00      1.00       432
+
+Accuratezza sul set di test: 1.0
+
+--------------------------------------------------
+
+--- Esecuzione di Randomized Grid Search per il dataset ../datasets/monk/monks-1.train ---
+Migliori parametri: {'kernel': 'poly', 'gamma': np.float64(0.45795300675827416), 'C': np.float64(4.60879677140793)}
+Miglior punteggio (cross-validation): 0.9833333333333334
+
+ Report di classificazione:
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00       216
+           1       1.00      1.00      1.00       216
+
+    accuracy                           1.00       432
+   macro avg       1.00      1.00      1.00       432
+weighted avg       1.00      1.00      1.00       432
+
+Accuratezza sul set di test: 1.0
+
+--------------------------------------------------
+
+--- Esecuzione di Nested Grid Search per il dataset ../datasets/monk/monks-1.train ---
