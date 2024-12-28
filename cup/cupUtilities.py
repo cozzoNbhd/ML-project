@@ -1,56 +1,29 @@
+import os
+
 import pandas as pd
 import numpy as np
+from numpy import loadtxt
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 
 class DatasetProcessor:
-    """
-    Classe per il caricamento e la pre-elaborazione dei dataset di training e test.
-    """
+    def __init__(self, root_dir):
+        self.root_dir = root_dir
 
-    def load_dataset(self, train_path, test_path):
-        """
-        Carica i dataset di training e test da file CSV.
+    def read_tr(self, split=False):
+        file = os.path.join(self.root_dir, "datasets", "ml-cup", "ML-CUP24-TR.csv")
+        train = np.loadtxt(file, delimiter=',', usecols=range(1, 16), dtype=np.float64)
 
-        Args:
-            train_path (str): Percorso del file di training.
-            test_path (str): Percorso del file di test.
+        x = train[:, :-3]
+        y = train[:, -3:]
+        if split:
+            x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.15, random_state=42)
+            return x_train, y_train, x_test, y_test
+        else:
+            return x, y
 
-        Returns:
-            tuple: (DataFrame di training, DataFrame di test)
-        """
-        df_train = pd.read_csv(train_path, sep=r"\s+", header=None)
-        df_test = pd.read_csv(test_path, sep=r"\s+", header=None)
-        return df_train, df_test
-
-    def preprocess_data(self, df_train, df_test):
-        """
-        Pre-elabora i dataset di training e test.
-
-        Args:
-            df_train (DataFrame): Dataset di training.
-            df_test (DataFrame): Dataset di test.
-
-        Returns:
-            tuple: (X_train, y_train, X_test, y_test) pre-elaborati come array numpy.
-        """
-        # Separazione delle feature e del target
-        y_train = df_train.iloc[:, 0]
-        y_test = df_test.iloc[:, 0]
-        X_train = df_train.iloc[:, 1:]
-        X_test = df_test.iloc[:, 1:]
-
-        # Conversione in array numpy
-        X_train = X_train.select_dtypes(include=[np.number]).to_numpy()
-        y_train = y_train.to_numpy()
-        X_test = X_test.select_dtypes(include=[np.number]).to_numpy()
-        y_test = y_test.to_numpy()
-
-        return X_train, y_train, X_test, y_test
-
-    def normalize_data(self, X_train, X_test):
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-
-        return X_train_scaled, X_test_scaled
+    def read_ts(self):
+        file = os.path.join(self.root_dir, "datasets", "ml-cup", "ML-CUP24-TS.csv")
+        test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
+        return test
