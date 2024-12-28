@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from keras import regularizers
 from sklearn.preprocessing import OneHotEncoder
 import itertools
-from utilities import DatasetProcessor  # Importa la classe dal file utilities.py
+from monkUtilities import DatasetProcessor  # Importa la classe dal file monkUtilities.py
 
 
 
@@ -395,9 +395,9 @@ def train_neural_network_with_kfold_and_gridsearch(train_path, test_path, params
 def main():
 
     datasets = [
-        ('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
-        ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
-        ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
+        ('../datasets/monk/monks-1.train', '../datasets/monk/monks-1.test'),
+        ('../datasets/monk/monks-2.train', '../datasets/monk/monks-2.test'),
+        ('../datasets/monk/monks-3.train', '../datasets/monk/monks-3.test')
     ]
 
     # Configurazione dei parametri in caso di grid search
