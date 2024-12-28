@@ -35,18 +35,16 @@ class DatasetProcessor:
             tuple: (X_train, y_train, X_test, y_test) pre-elaborati come array numpy.
         """
         # Separazione delle feature e del target
-        y_train = df_train.iloc[:, 0]
-        y_test = df_test.iloc[:, 0]
-        X_train = df_train.iloc[:, 1:]
-        X_test = df_test.iloc[:, 1:]
+        Y_train = df_train.iloc[:, -3:]
+        X_train = df_train.iloc[:, :-3]
+        
 
         # Conversione in array numpy
         X_train = X_train.select_dtypes(include=[np.number]).to_numpy()
-        y_train = y_train.to_numpy()
-        X_test = X_test.select_dtypes(include=[np.number]).to_numpy()
-        y_test = y_test.to_numpy()
+        y_train = Y_train.to_numpy()
 
-        return X_train, y_train, X_test, y_test
+
+        return X_train, y_train
 
     def normalize_data(self, X_train, X_test):
         scaler = StandardScaler()
