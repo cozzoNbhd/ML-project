@@ -1,5 +1,3 @@
-import os
-
 import numpy
 import numpy as np
 from keras import Sequential
@@ -7,12 +5,11 @@ from keras.callbacks import EarlyStopping,LearningRateScheduler
 from keras.layers import Dense, CategoryEncoding
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import SGD, Adam
-from numpy import loadtxt
 from sklearn.model_selection import train_test_split, KFold
 import matplotlib.pyplot as plt
 from keras import regularizers
 import itertools
-from cup.cupUtilities import DatasetProcessor  # Importa la classe dal file monkUtilities.py
+from monk.monkUtilities import DatasetProcessor  # Importa la classe dal file monkUtilities.py
 
 
 
@@ -395,25 +392,90 @@ def train_neural_network_with_kfold_and_gridsearch(train_path, test_path, params
 
 def main():
 
+    datasets = [
+        ('../datasets/monk/monks-1.train', '../datasets/monk/monks-1.test'),
+        ('../datasets/monk/monks-2.train', '../datasets/monk/monks-2.test'),
+        ('../datasets/monk/monks-3.train', '../datasets/monk/monks-3.test')
+    ]
 
-    # Percorso radice del progetto (due livelli sopra il file corrente)
-    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Configurazione dei parametri in caso di grid search
+    params = {
+        'learning_rates': [0.001, 0.01, 0.1],
+        'batch_sizes': [16, 32, 64],
+        'num_units': [16, 32, 64, 128],
+        'epochs': 100,
+        'patience': 20,
+        'optimizer': 'adam',
+        'regularization': 0.001,
+        'final_lr': 0.0001
+    }
 
-    processor = DatasetProcessor(ROOT_DIR)
+    # Configurazione dei parametri in caso di k-fold normale (parametri fissi)
+    params = {
+        'learning_rates': 0.001,
+        'batch_sizes': 16,
+        'num_units': 32,
+        'epochs': 100,
+        'patience': 20,
+        'optimizer': 'adam',
+        'regularization': 0.001,
+        'final_lr': 0.0001
+    }
 
-    # Carica il dataset di training con split
-    x_train, y_train, x_test, y_test = processor.read_tr(split=True)
-    print(f"x_train shape: {x_train.shape}, y_train shape: {y_train.shape}")
-    print(f"x_test shape: {x_test.shape}, y_test shape: {y_test.shape}")
+    for train_path, test_path in datasets:
 
-    # Carica il dataset di test (blind set)
-    test_data = processor.read_ts()
-    print(f"Test data shape: {test_data.shape}")
+        model, hist = train_neural_network_with_kfold(train_path, test_path, params)
+
+        # Grafico Accuracy
+        plt.figure()
+        plt.plot(hist.history['accuracy'], label='Train Accuracy')
+        plt.plot(hist.history['val_accuracy'], label='Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.title(f"Accuracy for {train_path}")
+        plt.show()
+
+        # Grafico Loss
+        plt.figure()
+        plt.plot(hist.history['loss'], label='Train Loss')
+        plt.plot(hist.history['val_loss'], label='Validation Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.title(f"Loss for {train_path}")
+        plt.show()
 
 
+    """ SOLO K-FOLD
+    for train_path, test_path in datasets:
+        model, hist = train_neural_network_with_grid_search(train_path, test_path, params)
 
+        # Grafico Accuracy
+        plt.figure()
+        plt.plot(hist.history['accuracy'], label='Train Accuracy')
+        plt.plot(hist.history['val_accuracy'], label='Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.title(f"Accuracy for {train_path}")
+        plt.show()
 
+        # Grafico Loss
+        plt.figure()
+        plt.plot(hist.history['loss'], label='Train Loss')
+        plt.plot(hist.history['val_loss'], label='Validation Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.title(f"Loss for {train_path}")
+        plt.show()
+    """
 
+    """ K-FOLD E GRID SEARCH
+    
+    
+    """
 if __name__ == "__main__":
     main()
 
