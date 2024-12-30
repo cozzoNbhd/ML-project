@@ -117,7 +117,7 @@ def keras_nn(ms=False):
         params = dict(units_1=128, units_2=64, dropout_1=0.2, dropout_2=0.2,
                       learning_rate=0.001, epochs=100, batch_size=16)
 
-        # Crea il modello e addestra
+    # Crea il modello e addestra
     model = create_model(params['units_1'], params['units_2'], params['dropout_1'],
                          params['dropout_2'], params['learning_rate'])
     history = train_model(model, x_train, y_train, None, None, params['epochs'], params['batch_size'])
