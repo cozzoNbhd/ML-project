@@ -109,7 +109,6 @@ def keras_nn(ms=False):
     x_train, y_train, x_test, y_test = processor.read_tr(split=True)
     x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
-    test_data = processor.read_ts()
 
     if ms:
         params = model_selection(x_train, y_train)
