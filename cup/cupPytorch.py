@@ -18,7 +18,6 @@ import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Definiamo la Rete Neurale
-ms_result =[]
 
 class NN(nn.Module):
     def __init__(self, input_size=12, n_units=40, n_output=3, dropout_rate=0.2):
@@ -115,13 +114,13 @@ def plot_learning_curve(losses, val_losses, start_epoch=1, savefig=False, **kwar
 
     plt.show()
 
-def fit(model, optimizer, loss_fn = mean_euclidean_error, epochs=150, batch_size=40):
+def fit(model, optimizer, loss_fn = mean_euclidean_error, epochs=200, batch_size=40):
 
         train_step = model_train_step(model, loss_fn, optimizer)
         losses = []
         val_losses = []
 
-        train_loader, val_loader = set(batch_size=batch_size)
+        train_loader, val_loader, _, _, _, _ = set(batch_size=40)
 
         # per ciascuna epoca
         for epoch in range(epochs):
@@ -150,7 +149,7 @@ def fit(model, optimizer, loss_fn = mean_euclidean_error, epochs=150, batch_size
 
 def model_selection(loss_fn=mean_euclidean_error):
     
-    x_tensor, y_tensor = set(batch_size=40)
+    _, _, x_tensor, y_tensor, _, _ = set(batch_size=40)
 
     model = NeuralNetClassifier(
         NN,
@@ -182,7 +181,7 @@ def predict(model, x_ts):
     # change our data into tensors to work with PyTorch
     x_ts = torch.from_numpy(x_ts).float()
 
-    x_int_test, y_int_test = set()
+    _, _, _, _, x_int_test, y_int_test = set(batch_size=40)
 
     # predict on internal test set
     y_ipred = model(x_int_test)
@@ -196,16 +195,17 @@ def predict(model, x_ts):
     return y_pred.detach().numpy(), iloss.item()
 
 
-def pytorch_nn(ms=True):
+def pytorch_nn(ms=False):
     print("pytorch start\n")
-
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    processor = DatasetProcessor(ROOT_DIR)
     # read training set
     #x_ts = DatasetProcessor.read_ts()
     # choose model selection or hand-given parameters
     if ms:
         params = model_selection()
     else:
-        params = dict(eta=0.003, alpha=0.85, lmb=0.0002, epochs=80, batch_size=64)
+        params = dict(eta=0.003, alpha=0.85, lmb=0.0002, epochs=80, batch_size=64, dropout_rate=0.1)
 
     # create and fit the model
     model = NN()
@@ -213,9 +213,9 @@ def pytorch_nn(ms=True):
     optimizer = optim.Adam(model.parameters(), lr=params['eta'], weight_decay=params['lmb'])
 
     tr_losses, val_losses = fit(model=model, optimizer=optimizer,
-                                batch_size=params['batch_size'], dropout_rate=params["dropout_rate"])
+                                batch_size=params['batch_size'])
 
-    y_pred, ts_losses = predict(model=model, x_ts=DatasetProcessor.read_ts())
+    y_pred, ts_losses = predict(model=model, x_ts=processor.read_ts())
 
     print("TR Loss: ", tr_losses[-1])
     print("VL Loss: ", val_losses[-1])
