@@ -226,5 +226,5 @@ def main():
     print("\n" + "-" * 50)
 
 # Esegui la funzione main
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+  #  main()
