@@ -5,6 +5,9 @@ import numpy as np
 from numpy import loadtxt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+Team_name = "Sium"
+BLIND_TEST_FILENAME = f"{Team_name}_ML-CUP24-TS.csv"
 
 
 class DatasetProcessor:
@@ -28,11 +31,9 @@ class DatasetProcessor:
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
         return test
 
-    def write_blind_results(y_pred):
+    def write_blind_results(self,y_pred):
 
-        assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
-
-        file = os.path.join(ROOT_DIR, BLIND_TEST_FILENAME)
+        file = os.path.join(self.root_dir, BLIND_TEST_FILENAME)
         with open(file, "w") as f:
             print("# Tank \t Leo", file=f)
             print("# Martana", file=f)
@@ -41,7 +42,23 @@ class DatasetProcessor:
 
             pred_id = 1
             for p in y_pred:
-                print("{},{},{}".format(pred_id, p[0], p[1]), file=f)
+                print("{},{},{},{}".format(pred_id, p[0], p[1], p[2]), file=f)
                 pred_id += 1
 
         f.close()
+
+    def save_figure(self, model_name, **params):
+        name = ""
+        for k, v in params.items():
+            name += f"{k}{v}_"
+        name += ".png"
+
+        # create plot directory if it doesn't exist
+        dir_path = os.path.join(self.root_dir, model_name, "plot")
+        os.makedirs(dir_path, exist_ok=True)
+
+        # save plot as figure
+        fig_path = os.path.join(dir_path, name)
+        plt.savefig(fig_path, dpi=600)
+
+
