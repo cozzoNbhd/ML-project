@@ -8,8 +8,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
-from sklearn.model_selection import KFold, GridSearchCV, train_test_split
+from sklearn.model_selection import KFold, GridSearchCV, train_test_split, ParameterGrid
 from skorch import NeuralNetClassifier
+from torch import Tensor
 
 from cupUtilities import DatasetProcessor
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Definiamo la Rete Neurale
 
 class NN(nn.Module):
-    def __init__(self, input_size=12, n_units=40, n_output=3, dropout_rate=0.2):
+    def __init__(self, input_size=12, n_units=40, n_output=3, dropout_rate=0.0):
         super(NN, self).__init__()
         self.ly_in = nn.Linear(input_size, n_units)
         
@@ -59,17 +60,17 @@ def set(batch_size):
     x_test, y_test = processor.read_tr(split=False)
 
     # change our data into tensors to work with PyTorch
-    x_tensor = torch.from_numpy(x_train).float()
-    y_tensor = torch.from_numpy(y_train).float()
+    x_tensor = torch.from_numpy(x_train).float().to(device)
+    y_tensor = torch.from_numpy(y_train).float().to(device)
 
-    x_tensor2 = torch.from_numpy(x_train2).float()
-    y_tensor2 = torch.from_numpy(y_train2).float()
+    x_tensor2 = torch.from_numpy(x_train2).float().to(device)
+    y_tensor2 = torch.from_numpy(y_train2).float().to(device)
 
-    x_val_tens = torch.from_numpy(x_val).float()
-    y_val_tens = torch.from_numpy(y_val).float()
+    x_val_tens = torch.from_numpy(x_val).float().to(device)
+    y_val_tens = torch.from_numpy(y_val).float().to(device)
 
-    x_int_tens = torch.from_numpy(x_test).float()
-    y_int_tens = torch.from_numpy(y_test).float()
+    x_int_tens = torch.from_numpy(x_test).float().to(device)
+    y_int_tens = torch.from_numpy(y_test).float().to(device)
 
     train_data = TensorDataset(x_tensor2, y_tensor2)
     val_data = TensorDataset(x_val_tens, y_val_tens)
@@ -100,19 +101,27 @@ def model_train_step(model, loss_fn, optimizer):
     
     return train_step
 
-def plot_learning_curve(losses, val_losses, start_epoch=1, savefig=False, **kwargs):
-    plt.plot(range(start_epoch, kwargs['epochs']), losses[start_epoch:])
-    plt.plot(range(start_epoch, kwargs['epochs']), val_losses[start_epoch:])
+def plot_learning_curve(tr_losses, val_losses, savefig=True, **kwargs):
+    start_epoch = kwargs.get('start_epoch', 0)
+    epochs = len(tr_losses)  # Usa la lunghezza effettiva delle perdite come limite superiore
 
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.legend(['Loss TR', 'Loss VL'])
-    plt.title(f'PyTorch Learning Curve \n {kwargs}')
+    # Assicurati che x e y abbiano la stessa lunghezza
+    x = range(start_epoch, epochs)
+
+    # Plotta le curve di apprendimento
+    plt.figure(figsize=(10, 6))
+    plt.plot(x, tr_losses[start_epoch:], label='Training Loss')
+    plt.plot(x, val_losses[start_epoch:], label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Learning Curve')
+    plt.legend()
+    plt.grid()
 
     if savefig:
-        save_figure("pytorchNN", **kwargs)
-
+        plt.savefig('learning_curve.png')
     plt.show()
+
 
 def fit(model, optimizer, loss_fn = mean_euclidean_error, epochs=200, batch_size=40):
 
@@ -146,7 +155,38 @@ def fit(model, optimizer, loss_fn = mean_euclidean_error, epochs=200, batch_size
 
         return losses, val_losses
 
+def model_selection(x, y, model_class, loss_fn = mean_euclidean_error, epochs=200):
+    best_loss = float("inf")
+    best_params = None
 
+    param_grid = {
+        "batch_size": [10, 20, 30, 40],
+        "eta": [0.001, 0.01, 0.05, 0.1],
+        "dropout_rate": [0.0, 0.1, 0.2, 0.3],
+        "lmb": [0.0005, 0.001]
+    }
+    grid = ParameterGrid(param_grid)
+    for param_dict in grid:
+        model = model_class(dropout_rate=param_dict["dropout_rate"]).to(device)
+        optimizer = optim.Adam(model.parameters(), lr=param_dict["eta"], weight_decay=param_dict["lmb"])
+
+        for epoch in range(epochs):
+            model.train()
+            optimizer.zero_grad()
+            outputs = model(x.to(device))
+            loss = loss_fn(outputs, y.to(device))
+            loss.backward()
+            optimizer.step()
+        
+        # Aggiorna i migliori parametri se il modello ha ottenuto una loss migliore
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            best_params = param_dict
+
+            print(f"Params: {param_dict}, Loss: {loss.item()}")
+
+        return best_params, best_loss
+"""
 def model_selection(loss_fn=mean_euclidean_error):
     
     _, _, x_tensor, y_tensor, _, _ = set(batch_size=40)
@@ -176,10 +216,10 @@ def model_selection(loss_fn=mean_euclidean_error):
     for mean, stdev, param in zip(means, stds, params):
         print("%f (%f) with: %r" % (mean, stdev, param))
     return best_params
-
+"""
 def predict(model, x_ts):
     # change our data into tensors to work with PyTorch
-    x_ts = torch.from_numpy(x_ts).float()
+    x_ts = torch.from_numpy(x_ts).float().to(device)
 
     _, _, _, _, x_int_test, y_int_test = set(batch_size=40)
 
@@ -188,27 +228,34 @@ def predict(model, x_ts):
     iloss = mean_euclidean_error(y_int_test, y_ipred)
 
     # predict on blind test set
-    y_pred = model(x_ts)
+    y_pred = model(x_ts).to(device)
 
     # return predicted target on blind test set,
     # and losses on internal test set
-    return y_pred.detach().numpy(), iloss.item()
+    return y_pred.detach().cpu().numpy(), iloss.item()
 
 
-def pytorch_nn(ms=False):
+def pytorch_nn(ms=True):
     print("pytorch start\n")
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     processor = DatasetProcessor(ROOT_DIR)
-    # read training set
-    #x_ts = DatasetProcessor.read_ts()
+    
+    params = None
+    best_loss = None
+    
     # choose model selection or hand-given parameters
     if ms:
-        params = model_selection()
+        _, _, x_tensor, y_tensor, _, _ = set(batch_size=40)
+        params, best_loss = model_selection(x_tensor, 
+        y_tensor,
+        model_class=NN)
+    
     else:
         params = dict(eta=0.003, alpha=0.85, lmb=0.0002, epochs=80, batch_size=64, dropout_rate=0.1)
 
+    print(f"Best parameters: {params}, Loss: {best_loss}")
     # create and fit the model
-    model = NN()
+    model = NN(dropout_rate=params["dropout_rate"]).to(device)
     model.apply(init_weights)
     optimizer = optim.Adam(model.parameters(), lr=params['eta'], weight_decay=params['lmb'])
 
@@ -226,7 +273,7 @@ def pytorch_nn(ms=False):
     plot_learning_curve(tr_losses, val_losses, savefig=True, **params)
 
     # generate csv file for MLCUP
-    DatasetProcessor.write_blind_results(y_pred)
+    processor.write_blind_results(y_pred)
 
 
 if __name__ == '__main__':
