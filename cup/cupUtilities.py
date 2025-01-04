@@ -26,6 +26,7 @@ class DatasetProcessor:
         else:
             return x, y
 
+    # Lettura blind test
     def read_ts(self):
         file = os.path.join(self.root_dir, "datasets", "ml-cup", "ML-CUP24-TS.csv")
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
