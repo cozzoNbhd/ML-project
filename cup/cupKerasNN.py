@@ -163,6 +163,7 @@ def keras_nn(ms=False):
     # Carica il dataset di training con split
     x_train, y_train, x_test, y_test = processor.read_tr(split=True)
 
+    test_data = processor.read_ts()
 
     x_train = np.asarray(x_train)
     y_train = np.asarray(y_train)
