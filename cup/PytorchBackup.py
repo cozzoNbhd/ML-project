@@ -17,31 +17,31 @@ from cupUtilities import DatasetProcessor
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Definiamo la Rete Neurale
 
 class NN(nn.Module):
-    def __init__(self, input_size=12, n_units=40, dropout_rate=0.0):
+    def __init__(self, input_size=12, num_layers=2, num_units=40, dropout_rate=0.0):
         super(NN, self).__init__()
-        self.ly_in = nn.Linear(input_size, n_units)
-        
-        self.ly1 = nn.Linear(n_units, n_units)
-        self.dropout1 = nn.Dropout(dropout_rate)
-        self.ly2 = nn.Linear(n_units, n_units)
-        #self.dropout2 = nn.Dropout(dropout_rate)
+        layers = []
 
-        self.ly_out = nn.Linear(n_units, out_features= 3)
+        # Primo layer
+        layers.append(nn.Linear(input_size, num_units))
+        
+        # Aggiungi il numero di layer successivi
+        for _ in range(num_layers - 1):
+            layers.append(nn.Linear(num_units, num_units))
+            layers.append(nn.ReLU())  # Funzione di attivazione
+            layers.append(nn.Dropout(dropout_rate))  # Dropout per ogni layer
+
+        # Layer finale
+        layers.append(nn.Linear(num_units, 3))  # 3 è il numero di output (adatta se necessario)
+
+        # Combina tutti i layer
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-
-        x = F.relu(self.ly_in(x))
-        x = F.relu(self.ly1(x))
-        x = self.dropout1(F.relu(self.ly1(x)))
-        x = F.relu(self.ly2(x))
-        #x = self.dropout2(F.relu(self.ly2(x)))
-        x = self.ly_out(x)
-        return x
+        return self.model(x)
 
 def init_weights(m):
     if isinstance(m, nn.Linear):
@@ -51,7 +51,6 @@ def set():
 
     # Percorso radice del progetto (due livelli sopra il file corrente)
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
     processor = DatasetProcessor(ROOT_DIR)
 
     # Carica il dataset di training con split
@@ -63,13 +62,10 @@ def set():
     # change our data into tensors to work with PyTorch
     x_tensor = torch.from_numpy(x_train).float().to(device)
     y_tensor = torch.from_numpy(y_train).float().to(device)
-
     x_tensor2 = torch.from_numpy(x_train2).float().to(device)
     y_tensor2 = torch.from_numpy(y_train2).float().to(device)
-
     x_val_tens = torch.from_numpy(x_val).float().to(device)
     y_val_tens = torch.from_numpy(y_val).float().to(device)
-
     x_int_tens = torch.from_numpy(x_test).float().to(device)
     y_int_tens = torch.from_numpy(y_test).float().to(device)
 
@@ -157,10 +153,12 @@ def model_selection(x, y, model_class, loss_fn = mean_euclidean_error, epochs=12
 
     kf = KFold(n_splits=n_splits, shuffle=True, random_state =42)
     param_grid = {
-        "batch_size": [20, 30, 40],
+        "batch_size": [10, 20, 30],
         "eta": [0.001, 0.002, 0.01],
         "dropout_rate": [0.0, 0.1],
-        "lmb": [0.0005, 0.0007, 0.001]
+        "lmb": [0.0005, 0.0007, 0.001],
+        "num_layers": [2, 3],  # Esempio di grid per il numero di layer
+        "num_units": [30, 40, 50]  # Esempio di grid per il numero di unità per layer
     }
     grid = ParameterGrid(param_grid)
 
@@ -171,7 +169,8 @@ def model_selection(x, y, model_class, loss_fn = mean_euclidean_error, epochs=12
             x_train, x_val = x[train_idx].to(device), x[val_idx].to(device)
             y_train, y_val = y[train_idx].to(device), y[val_idx].to(device)
 
-            model = model_class(dropout_rate=param_dict["dropout_rate"]).to(device)
+            model = model_class(num_layers=param_dict["num_layers"],num_units=param_dict["num_units"],dropout_rate=param_dict["dropout_rate"]).to(device)
+            model.apply(init_weights)
             optimizer = optim.Adam(model.parameters(), lr=param_dict["eta"], weight_decay=param_dict["lmb"])
 
             for epoch in range(epochs):
@@ -197,7 +196,7 @@ def model_selection(x, y, model_class, loss_fn = mean_euclidean_error, epochs=12
         print(f"Params: {param_dict}, Avg Val Loss: {avg_val_loss}")
         
         # Aggiorna i migliori parametri se il modello ha ottenuto una loss migliore
-        if loss.item() < best_loss:
+        if avg_val_loss < best_loss:
             best_loss = avg_val_loss
             best_params = param_dict
 

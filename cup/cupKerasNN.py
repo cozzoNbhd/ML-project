@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSe
 import matplotlib.pyplot as plt
 from tensorflow.python.keras.regularizers import l2
 
-from cup.cupUtilities import DatasetProcessor
+from cupUtilities import DatasetProcessor
 import tensorflow.keras.backend as K
 from scikeras.wrappers import KerasClassifier, KerasRegressor
 

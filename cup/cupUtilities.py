@@ -21,7 +21,7 @@ class DatasetProcessor:
         x = train[:, :-3]
         y = train[:, -3:]
         if split:
-            x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.15, random_state=42)
+            x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
             return x_train, y_train, x_test, y_test
         else:
             return x, y
