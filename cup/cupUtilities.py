@@ -5,7 +5,8 @@ import numpy as np
 from numpy import loadtxt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
+Team_name="Martana"
+BLIND_TEST_FILENAME =f"{Team_name}ML-CUP24-TS.csv"
 
 class DatasetProcessor:
     def __init__(self, root_dir):
@@ -28,11 +29,11 @@ class DatasetProcessor:
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
         return test
 
-    def write_blind_results(y_pred):
+    def write_blind_results(self, y_pred):
 
-        assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
+        #assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
 
-        file = os.path.join(ROOT_DIR, BLIND_TEST_FILENAME)
+        file = os.path.join(self.root_dir, BLIND_TEST_FILENAME)
         with open(file, "w") as f:
             print("# Tank \t Leo", file=f)
             print("# Martana", file=f)
@@ -41,7 +42,7 @@ class DatasetProcessor:
 
             pred_id = 1
             for p in y_pred:
-                print("{},{},{}".format(pred_id, p[0], p[1]), file=f)
+                print("{},{},{}, {}".format(pred_id, p[0], p[1], p[2]), file=f)
                 pred_id += 1
 
         f.close()

@@ -1,0 +1,155 @@
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.07656583775194908), 'epsilon': np.float64(0.09996236570034453), 'C': np.float64(1.4261905311416896)}
+MAE: 0.5958403603208806
+MSE: 0.4901296752773624
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.15444836556600375), 'epsilon': np.float64(0.0764101452835007), 'C': np.float64(4.3866791216668455)}
+MAE: 0.18484170035386963
+MSE: 0.20038007977610403
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.15444836556600375), 'epsilon': np.float64(0.0764101452835007), 'C': np.float64(4.3866791216668455)}
+MAE: 0.08065055923469495
+MSE: 0.010287687345839722
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.15662145560074972), 'epsilon': np.float64(0.09290736748147048), 'C': np.float64(1.0594008026400565)}
+MAE: 0.5971194029169912
+MSE: 0.4992081426149993
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.26497514843335995), 'epsilon': np.float64(0.011302063827097654), 'C': np.float64(1.0043154518619308)}
+MAE: 0.18782303108169487
+MSE: 0.19825988805105302
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.09830862215360288), 'epsilon': np.float64(0.052823195633908394), 'C': np.float64(8.735591818980879)}
+MAE: 0.08021339378436503
+MSE: 0.010823236267952181
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.2272083231401741), 'epsilon': np.float64(0.03128755399647798), 'C': np.float64(2.078592270423139)}
+MAE: 0.6061040219984616
+MSE: 0.5040861117616463
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.10472691288473872), 'epsilon': np.float64(0.04566425267286007), 'C': np.float64(0.5076816105050719)}
+MAE: 0.17669167555819296
+MSE: 0.2000117782238126
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.2245884186433176), 'epsilon': np.float64(0.0839697853425603), 'C': np.float64(4.225298073568424)}
+MAE: 0.07857946744717935
+MSE: 0.010262079700113943
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.8557448160394951), 'epsilon': np.float64(0.08966633734301925), 'C': np.float64(5.026922646009809)}
+MAE: 0.6003421397644878
+MSE: 0.4944020021307672
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.1634266937653637), 'epsilon': np.float64(0.0690796400721437), 'C': np.float64(3.684480010614659)}
+MAE: 0.18257639899089334
+MSE: 0.19819092903290805
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.04426308354250841), 'epsilon': np.float64(0.06560760413573771), 'C': np.float64(4.377719371815398)}
+MAE: 0.08570099849563391
+MSE: 0.011396748236544733
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.04426308354250841), 'epsilon': np.float64(0.07116742893238236), 'C': np.float64(2.521035832515801)}
+MAE: 0.6035040881759938
+MSE: 0.5008086605220022
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.16954615221325997), 'epsilon': np.float64(0.06699146999496135), 'C': np.float64(0.9592931204516053)}
+MAE: 0.17476243973974176
+MSE: 0.19632717348735415
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.03461825755530501), 'epsilon': np.float64(0.06699146999496135), 'C': np.float64(9.981983512738697)}
+MAE: 0.08476670937410767
+MSE: 0.011472981601717709
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.28601917403072025), 'epsilon': np.float64(0.07030237110796309), 'C': np.float64(0.9636524536207907)}
+MAE: 0.5946107750875255
+MSE: 0.4949281579484614
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.2615359616238884), 'epsilon': np.float64(0.06753497448735628), 'C': np.float64(1.3402441144122568)}
+MAE: 0.17534188762182412
+MSE: 0.19263130897714936
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.11930454145846427), 'epsilon': np.float64(0.06753497448735628), 'C': np.float64(3.7556170310232377)}
+MAE: 0.08211121052151465
+MSE: 0.011152235527972083
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.3282407145920023), 'epsilon': np.float64(0.0353349032758987), 'C': np.float64(1.3402441144122568)}
+MAE: 0.6024822229387885
+MSE: 0.4891114208416983
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.15833057518929924), 'epsilon': np.float64(0.055006712706549214), 'C': np.float64(8.629024410625584)}
+MAE: 0.19581009262917187
+MSE: 0.2110625568568667
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.15833057518929924), 'epsilon': np.float64(0.055006712706549214), 'C': np.float64(8.629024410625584)}
+MAE: 0.07925493991828689
+MSE: 0.010861101474866089
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.7081902370975637), 'epsilon': np.float64(0.01341687246041563), 'C': np.float64(7.367126781834682)}
+MAE: 0.5960290697056504
+MSE: 0.4844102047399044
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.11551691266461721), 'epsilon': np.float64(0.06571309832231309), 'C': np.float64(9.37647689864951)}
+MAE: 0.19440641000187572
+MSE: 0.2178021041675195
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.11551691266461721), 'epsilon': np.float64(0.06571309832231309), 'C': np.float64(9.37647689864951)}
+MAE: 0.07966514295858872
+MSE: 0.010700960688563436
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.5474670707562228), 'epsilon': np.float64(0.014514694772786128), 'C': np.float64(1.316097733364089)}
+MAE: 0.5992508690947529
+MSE: 0.48934477145769834
+
+Target: TARGET_x
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.3741399368476702), 'epsilon': np.float64(0.07559825486518097), 'C': np.float64(1.407257489657554)}
+MAE: 0.17882967036519354
+MSE: 0.18618236225690163
+
+Target: TARGET_y
+Migliori parametri: {'kernel': 'rbf', 'gamma': np.float64(0.36069688374582193), 'epsilon': np.float64(0.016326965403063737), 'C': np.float64(4.4857011837997645)}
+MAE: 0.08991263358960119
+MSE: 0.01302309114451652
+
+Target: TARGET_z
+Migliori parametri: {'kernel': 'linear', 'gamma': np.float64(0.846940630502939), 'epsilon': np.float64(0.016326965403063737), 'C': np.float64(1.0257375582774817)}
+MAE: 0.5987210031887088
+MSE: 0.4868812913853217
+
+Target: TARGET_x
+Migliori parametri: {'C': 1, 'epsilon': 0.001, 'gamma': 0.1, 'kernel': 'rbf'}
+MAE: 0.18768879147002773
+MSE: 0.2011503868003477
+
+Target: TARGET_y
+Migliori parametri: {'C': 10, 'epsilon': 0.1, 'gamma': 0.1, 'kernel': 'rbf'}
+MAE: 0.08156315437791706
+MSE: 0.010468058680931815
+
+Target: TARGET_z
+Migliori parametri: {'C': 1, 'epsilon': 0.1, 'gamma': 0.001, 'kernel': 'linear'}
+MAE: 0.5962781622120229
+MSE: 0.49904509404089115
+
