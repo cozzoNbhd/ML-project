@@ -39,7 +39,7 @@ def set_data():
     x_train, y_train = processor.read_tr(split=False)
     x_train2, x_val, y_train2, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
-    x_test, y_test = processor.read_tr(split=False)
+    x_test, y_test = processor.read_ts(split=False)
 
     # Converti in tensori
     x_tensor = torch.from_numpy(x_train).float().to(device)
@@ -119,8 +119,8 @@ def fit(model, optimizer, train_loader, val_loader, epochs, loss_fn=mean_euclide
 def objective(trial):
     # Parametri da ottimizzare
     num_layers = trial.suggest_int("num_layers", 2, 5)
-    num_units = trial.suggest_int("num_units", 30, 100)
-    dropout_rate = trial.suggest_categorical("dropout_rate", [0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    num_units = trial.suggest_int("num_units", 20, 100)
+    dropout_rate = trial.suggest_float("dropout_rate", 0.0 0.5])
     eta = trial.suggest_float("eta", 1e-4, 1e-2, log=True)
     lmb = trial.suggest_float("lmb", 1e-5, 1e-3, log=True)
     batch_size = trial.suggest_categorical("batch_size", [10, 20, 30, 40])
