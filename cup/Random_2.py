@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Subset
 from sklearn.model_selection import train_test_split, KFold
 from matplotlib import pyplot as plt
 from cupUtilities import DatasetProcessor
@@ -36,25 +36,25 @@ def set_data():
     processor = DatasetProcessor(ROOT_DIR)
 
     # Carica i dataset
-    x_train, y_train = processor.read_tr(split=False)
+    x_train, y_train, x_test, y_test = processor.read_tr(split=True)
     x_train2, x_val, y_train2, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
-    x_test, y_test = processor.read_tr(split=False)
+    x_blind_test = processor.read_ts()
 
     # Converti in tensori
     x_tensor = torch.from_numpy(x_train).float().to(device)
     y_tensor = torch.from_numpy(y_train).float().to(device)
-    x_tensor2 = torch.from_numpy(x_train2).float().to(device)
-    y_tensor2 = torch.from_numpy(y_train2).float().to(device)
     x_val_tens = torch.from_numpy(x_val).float().to(device)
     y_val_tens = torch.from_numpy(y_val).float().to(device)
+    x_tens = torch.from_numpy(x_blind_test).float().to(device)
     x_test_tens = torch.from_numpy(x_test).float().to(device)
     y_test_tens = torch.from_numpy(y_test).float().to(device)
 
-    train_data = TensorDataset(x_tensor2, y_tensor2)
+
+    train_data = TensorDataset(x_tensor, y_tensor)
     val_data = TensorDataset(x_val_tens, y_val_tens)
 
-    return train_data, val_data, x_tensor, y_tensor, x_test_tens, y_test_tens
+    return train_data, val_data, x_tensor, y_tensor, x_tens, x_test_tens, y_test_tens
 
 
 def mean_euclidean_error(y_true, y_pred):
@@ -116,34 +116,64 @@ def fit(model, optimizer, train_loader, val_loader, epochs, loss_fn=mean_euclide
 
     return tr_losses, val_losses
 
+def fit2(model, optimizer, train_loader, epochs, loss_fn=mean_euclidean_error):
+    tr_losses = []  # Per salvare le perdite di addestramento
+
+    for epoch in range(epochs):
+        model.train()
+        epoch_losses = []  # Per accumulare le perdite di ogni batch
+
+        for x_batch, y_batch in train_loader:
+            optimizer.zero_grad()  # Resetta i gradienti
+            y_pred = model(x_batch)  # Predizione
+            loss = loss_fn(y_batch, y_pred)  # Calcolo della perdita
+            loss.backward()  # Backpropagation
+            optimizer.step()  # Aggiornamento dei pesi
+            epoch_losses.append(loss.item())
+
+        # Calcola la perdita media per l'epoca e aggiungila alla lista
+        tr_losses.append(np.mean(epoch_losses))
+
+    return tr_losses
+
 def objective(trial):
     # Parametri da ottimizzare
     num_layers = trial.suggest_int("num_layers", 2, 5)
-    num_units = trial.suggest_int("num_units", 30, 100)
-    dropout_rate = trial.suggest_categorical("dropout_rate", [0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    num_units = trial.suggest_int("num_units", 20, 100)
+    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
     eta = trial.suggest_float("eta", 1e-4, 1e-2, log=True)
     lmb = trial.suggest_float("lmb", 1e-5, 1e-3, log=True)
     batch_size = trial.suggest_categorical("batch_size", [10, 20, 30, 40])
     epochs = 100  # Fisso per velocizzare la ricerca
 
     # Dati
-    train_data, val_data, _, _, _, _ = set_data()
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    train_data, _, _, _, _, _, _  = set_data()
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    
+    accuracies = []
+    # Cross-validation
+    for fold, (train_idx, valid_idx) in enumerate(kf.split(train_data)):
+        train_subset = Subset(train_data, train_idx)
+        valid_subset = Subset(train_data, valid_idx)
+
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(valid_subset, batch_size=batch_size, shuffle=False)
 
     # Modello
-    model = NN(num_layers=num_layers, num_units=num_units, dropout_rate=dropout_rate).to(device)
-    model.apply(init_weights)
-    optimizer = optim.Adam(model.parameters(), lr=eta, weight_decay=lmb)
+        model = NN(num_layers=num_layers, num_units=num_units, dropout_rate=dropout_rate).to(device)
+        model.apply(init_weights)
+        optimizer = optim.Adam(model.parameters(), lr=eta, weight_decay=lmb)
 
     # Addestra e calcola la loss di validazione
-    _, val_losses = fit(model, optimizer, train_loader, val_loader, epochs)
-    return min(val_losses)
+        _, val_losses = fit(model, optimizer, train_loader, val_loader, epochs)
+        accuracies.append(1- min(val_losses))
+    
+    return np.mean(accuracies)
 
 def predict(model, x_ts):
     # change our data into tensors to work with PyTorch
 
-    _, _, _, _, x_int_test, y_int_test = set_data()
+    _ ,_, _, _, _, x_int_test, y_int_test = set_data()
 
     # predict on internal test set
     y_ipred = model(x_int_test)
@@ -163,8 +193,8 @@ def pytorch_nn(use_optuna=True):
     processor = DatasetProcessor(ROOT_DIR)
 
     if use_optuna:
-        study = optuna.create_study(direction="minimize")
-        study.optimize(objective, n_trials=50)
+        study = optuna.create_study(direction="maximize")
+        study.optimize(objective, n_trials=30)
 
         # Migliori parametri
         params = study.best_params
@@ -181,7 +211,7 @@ def pytorch_nn(use_optuna=True):
         }
 
     # Dati
-    train_data, val_data, _, _, x_test, _ = set_data()
+    train_data, val_data, _, _, x_test, _, _ = set_data()
     train_loader = DataLoader(train_data, batch_size=params["batch_size"], shuffle=True)
     val_loader = DataLoader(val_data, batch_size=params["batch_size"], shuffle=False)
 
@@ -195,7 +225,7 @@ def pytorch_nn(use_optuna=True):
     optimizer = optim.Adam(model.parameters(), lr=params["eta"], weight_decay=params["lmb"])
 
     # Addestramento
-    tr_losses, val_losses = fit(model, optimizer, train_loader, val_loader, params.get("epochs", 50))
+    tr_losses = fit2(model, optimizer, train_loader, params.get("epochs", 50))
 
     # Previsione
     y_pred, iloss = predict(model, x_test)
@@ -203,7 +233,7 @@ def pytorch_nn(use_optuna=True):
     # Risultati
     print(f"Internal Test Loss: {iloss}")
     print(f"Final Training Loss: {tr_losses[-1]}")
-    print(f"Final Validation Loss: {val_losses[-1]}")
+    #print(f"Final Validation Loss: {val_losses[-1]}")
 
     # Salva i risultati
     processor.write_blind_results(y_pred)
@@ -212,7 +242,7 @@ def pytorch_nn(use_optuna=True):
     # Plot delle curve di apprendimento
     plt.figure(figsize=(10, 6))
     plt.plot(tr_losses, label="Training Loss")
-    plt.plot(val_losses, label="Validation Loss")
+    #plt.plot(val_losses, label="Validation Loss")
     plt.legend()
     plt.grid()
     plt.title("Learning Curve")
