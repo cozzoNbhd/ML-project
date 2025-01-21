@@ -1,5 +1,6 @@
 import numpy
 import numpy as np
+import tensorflow as tf
 from keras import Sequential
 from keras.callbacks import EarlyStopping,LearningRateScheduler
 from keras.layers import Dense, BatchNormalization, CategoryEncoding, Flatten,Input
@@ -14,9 +15,16 @@ import itertools
 from monkUtilities import DatasetProcessor  # Importa la classe dal file monkUtilities.py
 
 
+# Funzione per calcolare la MEE
+def mean_euclidean_error(y_true, y_pred):
+    # Calcola la distanza euclidea per ogni esempio
+    euclidean_distances = tf.sqrt(tf.reduce_sum(tf.square(y_true - y_pred), axis=-1))
+    # Calcola la media delle distanze
+    return tf.reduce_mean(euclidean_distances)
 
 
-def train_neural_network(train_path, test_path):
+#dataset3
+def train_neural_network3(train_path, test_path):
     # Caricamento e preprocessing dei dati
     processor = DatasetProcessor()
     df_train, df_test = processor.load_dataset(train_path, test_path)
@@ -40,16 +48,233 @@ def train_neural_network(train_path, test_path):
     X_val_encoded = X_val_encoded.reshape(X_val_encoded.shape[0], -1)
     X_test_encoded = X_test_encoded.reshape(X_test_encoded.shape[0], -1)
 
+    # Definizione del callback per early stopping
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitoriamo la perdita sulla validazione
+        patience=20,  # Numero di epoche da aspettare senza miglioramenti #25
+        restore_best_weights=True  # Ripristina i pesi migliori al termine
+    )
+
     # Creazione del modello
     model = Sequential([
-        Dense(4, activation='relu', kernel_initializer="glorot_normal"),# kernel_regularizer=regularizers.L2(0.0001)),  # Primo strato nascosto
+        Dense(4, activation='relu', kernel_regularizer=regularizers.L2(0.1)),# kernel_regularizer=regularizers.L2(0.0001)),  # Primo strato nascosto
+       
         Dense(1, activation='sigmoid')  # Strato di output con sigmoid
     ])
 
-    # Compilazione del modello
+    #prima prova
     model.compile(
-        optimizer=SGD(learning_rate=0.3, momentum = 0.6),  # Ottimizzatore SGD
-        loss=MeanSquaredError(),         # Loss Binary Cross Entropy
+        optimizer=SGD(learning_rate=0.2, momentum = 0.5),  # Ottimizzatore SGD #0.2, 0.7
+        loss=mean_euclidean_error,         # Loss Binary Cross Entropy
+        metrics=['accuracy'] ,              # Metrica Accuracy
+
+    )
+
+    # Addestramento del modello
+    hist = model.fit(
+        X_train_encoded, y_train,
+        epochs=120,
+        batch_size=35,
+        validation_data=(X_val_encoded, y_val),
+        callbacks=[early_stopping]
+    )
+
+    final_train_loss = hist.history['loss'][-1]
+    final_train_accuracy = hist.history['accuracy'][-1]
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Final Training Loss: {final_train_loss}")
+    print(f"Final Training Accuracy: {final_train_accuracy}")
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Test Loss: {loss}")
+    print(f"Test Accuracy: {accuracy}")
+
+    return model, hist
+
+
+#3 senza regularizer
+def train_neural_network2(train_path, test_path):
+    # Caricamento e preprocessing dei dati
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+
+    X_train_full, y_train_full, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    # Dividi i dati di training in train e validation
+    X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.15, random_state=42)
+
+    num_tokens = int(numpy.max(X_train) + 1)  # Numero di categorie (es. 4: 0, 1, 2, 3)
+
+    # Applicazione di One-Hot Encoding su X_train, X_val e X_test
+    encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+    X_train_encoded = encoding_layer(X_train).numpy()
+    X_val_encoded = encoding_layer(X_val).numpy()
+    X_test_encoded = encoding_layer(X_test).numpy()
+
+    # Appiattisci i dati codificati per renderli bidimensionali
+    X_train_encoded = X_train_encoded.reshape(X_train_encoded.shape[0], -1)
+    X_val_encoded = X_val_encoded.reshape(X_val_encoded.shape[0], -1)
+    X_test_encoded = X_test_encoded.reshape(X_test_encoded.shape[0], -1)
+
+    # Definizione del callback per early stopping
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitoriamo la perdita sulla validazione
+        patience=15,  # Numero di epoche da aspettare senza miglioramenti
+        restore_best_weights=True  # Ripristina i pesi migliori al termine
+    )
+
+    # Creazione del modello
+    model = Sequential([
+        #Dense(4, activation='relu', kernel_initializer="glorot_normal", kernel_regularizer=regularizers.L1L2(0.001,0.01)),
+        Dense(4, activation='tanh'),
+        Dense(1, activation='sigmoid')  # Strato di output con sigmoid
+    ])
+
+    model.compile(
+        #0.1 , 0.79
+        #0.1 , 0.9
+        optimizer=SGD(learning_rate=0.1, momentum=0.9), #0.26 , 0.79
+        loss=mean_euclidean_error,  
+        metrics=['accuracy']
+    )
+
+    # Addestramento del modello
+    hist = model.fit(
+        X_train_encoded, y_train,
+        epochs=100, #80
+        batch_size=35, #35
+        validation_data=(X_val_encoded, y_val),
+        callbacks=[early_stopping]  # Ora il callback è definito correttamente
+    )
+
+    final_train_loss = hist.history['loss'][-1]
+    final_train_accuracy = hist.history['accuracy'][-1]
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Final Training Loss: {final_train_loss}")
+    print(f"Final Training Accuracy: {final_train_accuracy}")
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Test Loss: {loss}")
+    print(f"Test Accuracy: {accuracy}")
+
+    return model, hist
+
+
+#dataset2
+def train_neural_network4(train_path, test_path):
+    # Caricamento e preprocessing dei dati
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+
+    X_train_full, y_train_full, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    # Dividi i dati di training in train e validation
+    X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.15, random_state=42)
+
+    num_tokens = int(numpy.max(X_train) + 1)  # Numero di categorie (es. 4: 0, 1, 2, 3)
+
+    # Applicazione di One-Hot Encoding su X_train, X_val e X_test
+    encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+    X_train_encoded = encoding_layer(X_train).numpy()
+    X_val_encoded = encoding_layer(X_val).numpy()
+    X_test_encoded = encoding_layer(X_test).numpy()
+
+
+    # Appiattisci i dati codificati per renderli bidimensionali
+    X_train_encoded = X_train_encoded.reshape(X_train_encoded.shape[0], -1)
+    X_val_encoded = X_val_encoded.reshape(X_val_encoded.shape[0], -1)
+    X_test_encoded = X_test_encoded.reshape(X_test_encoded.shape[0], -1)
+
+    # Definizione del callback per early stopping
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitoriamo la perdita sulla validazione
+        patience=15,  # Numero di epoche da aspettare senza miglioramenti
+        restore_best_weights=True  # Ripristina i pesi migliori al termine
+    )
+
+    # Creazione del modello
+    model = Sequential([
+        Dense(4, activation='relu'),# kernel_regularizer=regularizers.L2(0.0001)),  # Primo strato nascosto
+       
+        Dense(1, activation='sigmoid')  # Strato di output con sigmoid
+    ])
+
+    #prima prova
+    model.compile(
+        optimizer=SGD(learning_rate=0.2, momentum = 0.8),  # Ottimizzatore SGD
+        loss=mean_euclidean_error,         # Loss Binary Cross Entropy
+        metrics=['accuracy'] ,              # Metrica Accuracy
+
+    )
+
+    # Addestramento del modello
+    hist = model.fit(
+        X_train_encoded, y_train,
+        epochs=150,
+        batch_size=20,
+        validation_data=(X_val_encoded, y_val),
+        #callbacks=[early_stopping]
+    )
+
+    final_train_loss = hist.history['loss'][-1]
+    final_train_accuracy = hist.history['accuracy'][-1]
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Final Training Loss: {final_train_loss}")
+    print(f"Final Training Accuracy: {final_train_accuracy}")
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Test Loss: {loss}")
+    print(f"Test Accuracy: {accuracy}")
+
+    return model, hist
+
+
+#dataset1
+def train_neural_network(train_path, test_path):
+    # Caricamento e preprocessing dei dati
+    processor = DatasetProcessor()
+    df_train, df_test = processor.load_dataset(train_path, test_path)
+
+    X_train_full, y_train_full, X_test, y_test = processor.preprocess_data(df_train, df_test)
+
+    # Dividi i dati di training in train e validation
+    X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.2, random_state=42)
+
+    num_tokens = int(numpy.max(X_train) + 1)  # Numero di categorie (es. 4: 0, 1, 2, 3)
+
+    # Applicazione di One-Hot Encoding su X_train, X_val e X_test
+    encoding_layer = CategoryEncoding(num_tokens=num_tokens, output_mode="one_hot")
+    X_train_encoded = encoding_layer(X_train).numpy()
+    X_val_encoded = encoding_layer(X_val).numpy()
+    X_test_encoded = encoding_layer(X_test).numpy()
+
+
+    # Appiattisci i dati codificati per renderli bidimensionali
+    X_train_encoded = X_train_encoded.reshape(X_train_encoded.shape[0], -1)
+    X_val_encoded = X_val_encoded.reshape(X_val_encoded.shape[0], -1)
+    X_test_encoded = X_test_encoded.reshape(X_test_encoded.shape[0], -1)
+
+    # Creazione del modello
+    model = Sequential([
+        Dense(4, activation='relu'),# kernel_regularizer=regularizers.L2(0.0001)),  # Primo strato nascosto
+        Dense(1, activation='sigmoid')  # Strato di output con sigmoid
+    ])
+
+    #prima prova
+    
+    model.compile(
+        optimizer=SGD(learning_rate=0.30, momentum = 0.9),#Ottimizzatore SGD 0.85 0.28, 0.80 non male
+        #0.3, 0.85 non male, 0.3 , 0.83
+        loss=mean_euclidean_error,         # Loss Binary Cross Entropy
         metrics=['accuracy'] ,              # Metrica Accuracy
 
     )
@@ -65,11 +290,19 @@ def train_neural_network(train_path, test_path):
     # Addestramento del modello
     hist = model.fit(
         X_train_encoded, y_train,
-        epochs=200,
-        batch_size=25,
+        epochs=150, #120
+        batch_size=30, #prima 25
         validation_data=(X_val_encoded, y_val),
         #callbacks=[early_stopping]
     )
+
+    final_train_loss = hist.history['loss'][-1]
+    final_train_accuracy = hist.history['accuracy'][-1]
+
+    # Valutazione del modello
+    loss, accuracy = model.evaluate(X_test_encoded, y_test)
+    print(f"Final Training Loss: {final_train_loss}")
+    print(f"Final Training Accuracy: {final_train_accuracy}")
 
     # Valutazione del modello
     loss, accuracy = model.evaluate(X_test_encoded, y_test)
@@ -81,9 +314,9 @@ def train_neural_network(train_path, test_path):
 def main():
 
     datasets = [
-        ('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
+        #('./datasets/monk/monks-1.train', './datasets/monk/monks-1.test'),
         ('./datasets/monk/monks-2.train', './datasets/monk/monks-2.test'),
-        ('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
+        #('./datasets/monk/monks-3.train', './datasets/monk/monks-3.test')
     ]
 
 

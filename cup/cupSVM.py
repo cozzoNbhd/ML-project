@@ -13,7 +13,19 @@ from scipy.stats import loguniform
 from cupUtilities import DatasetProcessor
 from cup2Utilities import DatasetProcessor2
 from joblib import parallel_backend
+from sklearn.multioutput import MultiOutputRegressor
+import tensorflow.keras.backend as K
 import os
+import tensorflow as tf
+import xgboost as xgb
+
+# Definizione della funzione MEE
+def mean_euclidean_error(y_true, y_pred):
+    # Calcola la distanza euclidea media
+    mee = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(y_true - y_pred), axis=-1)))
+    
+    # Converte il tensor in float (necessario per sklearn)
+    return float(mee.numpy())
 
 
 def calcola(y_true_scaled, y_pred_scaled, scaler, alpha=0.001):
@@ -102,6 +114,68 @@ def random_grid_search3():
         print(f"Train score medio: {rs_cv.cv_results_['mean_train_score'][rs_cv.best_index_]}") 
     plt.legend()
     plt.show()    
+
+
+def random_grid_search_multioutput():
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    processor = DatasetProcessor(ROOT_DIR)
+    x_train_n, y_train, x_test_n, y_test = processor.read_tr(split=True)
+    x_ts = processor.read_ts()
+
+    # Creazione dello scaler
+    p2 = DatasetProcessor2()
+    x_train, x_test = p2.normalize_data(x_train_n, x_test_n)
+    _, x_ts = p2.normalize_data(x_train_n, x_ts)
+
+    # Definizione della griglia dei parametri
+    param_distributions = {
+        'estimator__kernel': ['linear', 'rbf', 'poly'],
+        'estimator__C': np.random.uniform(0.1, 10, 20),
+        'estimator__gamma': np.random.uniform(0.01, 1, 20),
+        'estimator__epsilon': np.random.uniform(0.01, 0.1, 10)
+    }
+
+    # Modello base
+    base_model = SVR()
+
+    # MultiOutputRegressor per gestire più target
+    multioutput_model = MultiOutputRegressor(base_model)
+
+    # Cross-validation e ricerca randomizzata
+    kfold = KFold(n_splits=2, shuffle=True, random_state=42)
+    rs_cv = RandomizedSearchCV(
+        estimator=multioutput_model,
+        param_distributions=param_distributions,
+        n_iter=30,  # Numero di iterazioni della ricerca
+        cv=kfold,
+        scoring="neg_mean_squared_error",
+        random_state=42,
+        n_jobs=-1,
+        return_train_score=True
+    )
+
+    print("Ottimizzazione del modello multioutput...")
+    rs_cv.fit(x_train, y_train)
+    print(f"Migliori parametri: {rs_cv.best_params_}")
+
+    best_model = rs_cv.best_estimator_
+
+    # Predizioni sul set di test
+    y_pred = best_model.predict(x_test)
+    print("Metriche complessive per il modello multioutput:")
+    print(f"MSE complessivo: {mean_squared_error(y_test, y_pred, multioutput='uniform_average')}")
+
+    # Calcolo delle metriche per ciascun target
+    mse_per_target = mean_squared_error(y_test, y_pred, multioutput='raw_values')
+    for i, target in enumerate(['TARGET_x', 'TARGET_y', 'TARGET_z']):
+        print(f"MSE per {target}: {mse_per_target[i]}")
+
+    # Predizione su x_ts
+    final_predictions = best_model.predict(x_ts)
+
+    # Scrivi i risultati sul file
+    processor.write_blind_results(final_predictions)
+    print("Risultati salvati correttamente!")
 
 
 #qui applico la standardizzazione anche al target
@@ -201,19 +275,22 @@ def random_grid_search():
     predictions = {}
     final_predictions = []  # Inizializza una lista vuota prima del ciclo
 
+    # Creazione dello scorer personalizzato (valori negativi per coerenza con minimizzazione della loss)
+    mee_scorer = make_scorer(mean_euclidean_error, greater_is_better=False)
+
     for i, target in enumerate(['TARGET_x', 'TARGET_y', 'TARGET_z']):
         y_train_target = y_train[:, i]
         y_test_target = y_test[:, i]
 
         model = SVR()
-        kfold = KFold(n_splits=2, shuffle=True, random_state=42)
+        kfold = KFold(n_splits=5, shuffle=True, random_state=42)
 
         rs_cv = RandomizedSearchCV(
             estimator=model,
             param_distributions=param_distributions,
-            n_iter=30,  # interessante cambiare
+            n_iter=100,  # interessante cambiare
             cv=kfold,
-            scoring="neg_mean_squared_error",
+            scoring=mee_scorer,
             random_state=42,
             n_jobs=-1,
             return_train_score=True
@@ -229,6 +306,10 @@ def random_grid_search():
 
         y_pred = best_model.predict(x_test)
         predictions[target] = y_pred
+
+        
+        mee_value = mean_euclidean_error(y_test_target, y_pred)
+        print(f"MEE per il set di validazione: {mee_value}")
 
         # Calcola le metriche di errore usando i target originali
         print(f"Metriche per {target}:")
@@ -592,6 +673,8 @@ def grid_search():
     x_tn, x_ts = p2.normalize_data(x_train_n, x_ts)
     models = {}
     predictions = {}
+    # Creazione dello scorer personalizzato (valori negativi per coerenza con minimizzazione della loss)
+    mee_scorer = make_scorer(mean_euclidean_error, greater_is_better=False)
     for i, target in enumerate(['TARGET_x', 'TARGET_y', 'TARGET_z']):
         y_train_target = y_train[:, i]
         y_test_target = y_test[:, i]
@@ -601,7 +684,7 @@ def grid_search():
         gs_cv = GridSearchCV(estimator=model,
                             param_grid=parameters,
                             cv=kfold,
-                            scoring="neg_mean_squared_error",
+                            scoring=mee_scorer,
                             n_jobs=-1,
                             return_train_score=True,
                             verbose=1)
@@ -616,6 +699,10 @@ def grid_search():
 
         y_pred = best_model.predict(x_test)
         predictions[target] = y_pred
+
+        mee_value = mean_euclidean_error(y_test_target, y_pred)
+        print(f"MEE per il set di validazione: {mee_value}")
+
 
         # Calcola le metriche di errore usando i target originali
         print(f"Metriche per {target}:")
@@ -717,12 +804,13 @@ def nested_grid_search_kfold():
         param_grid = {
             'C': np.linspace(0.1, 10, num=10),
             'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
-            'gamma': np.linspace(0.01, 1, num=5)
+            'gamma': np.linspace(0.01, 1, num=5),
+            'epsilon': np.linspace(0.01, 0.1, num=10)  
         }
 
         # Cross-validation
         outer_cv = KFold(n_splits=3, shuffle=True, random_state=42)
-        inner_cv = KFold(n_splits=3, shuffle=True, random_state=42)
+        inner_cv = KFold(n_splits=10, shuffle=True, random_state=42)
         model = SVR()
 
         nested_scores = []
@@ -733,9 +821,9 @@ def nested_grid_search_kfold():
         #x_train_scaled = scaler.fit_transform(x_train)  # Standardizza il training set
         #x_test_scaled = scaler.transform(x_test)       # Applica la stessa trasformazione al test set
 
-        for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(x_train_scaled)):
+        for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(x_train)):
             # Divisione in fold
-            X_train_fold, X_val_fold = x_train_scaled[train_idx], x_train_scaled[val_idx]
+            X_train_fold, X_val_fold = x_train[train_idx], x_train[val_idx]
             y_train_fold, y_val_fold = y_train_target[train_idx], y_train_target[val_idx]
 
             # Grid search
@@ -770,10 +858,10 @@ def nested_grid_search_kfold():
         print(f"\nParametri finali per {target}: {final_params}")
 
         final_model = SVR(**final_params)
-        final_model.fit(x_train_scaled, y_train_target)  # Utilizza tutti i dati per il training finale
+        final_model.fit(x_train, y_train_target)  # Utilizza tutti i dati per il training finale
         models[target] = final_model
 
-        y_test_pred = final_model.predict(x_test_scaled)  # Predizioni sul test set
+        y_test_pred = final_model.predict(x_test)  # Predizioni sul test set
         predictions[target] = y_test_pred
         
         print(f"Predizioni su x_test per {target}: {y_test_pred}")
@@ -845,17 +933,177 @@ def halvingFunction():
     results = halving_cv.cv_results_
 
 
+from sklearn.multioutput import MultiOutputRegressor
+
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import KFold, RandomizedSearchCV
+from sklearn.metrics import mean_squared_error
+from xgboost import XGBRegressor
+import numpy as np
+import os
+
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import KFold, RandomizedSearchCV
+from sklearn.metrics import mean_squared_error
+from xgboost import XGBRegressor
+import numpy as np
+import os
+
+def random_grid_search_xgboost():
+    np.random.seed(42)
+    random_state = 42
+
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    processor = DatasetProcessor(ROOT_DIR)
+    x_train_n, y_train, x_test_n, y_test = processor.read_tr(split=True)
+    x_ts = processor.read_ts()
+
+    # Creazione dello scaler
+    p2 = DatasetProcessor2()
+    x_train, x_test = p2.normalize_data(x_train_n, x_test_n)
+    _, x_ts = p2.normalize_data(x_train_n, x_ts)
+
+    poly = PolynomialFeatures(degree=2, include_bias=False)
+    x_train = poly.fit_transform(x_train)
+    x_test = poly.transform(x_test)
+    x_ts = poly.transform(x_ts)    
+
+
+    
+
+    base_model = XGBRegressor(objective='reg:squarederror', random_state=random_state)
+    multioutput_model = MultiOutputRegressor(base_model)
+
+    # Aggiustamento specifico per TARGET_z
+    print("Optimizing TARGET_z with specific parameters...")
+    param_distributions_z = {
+        'learning_rate': [0.01, 0.05, 0.1],
+        'max_depth': [5, 7, 9],  # Più profondità
+        'n_estimators': [300, 400, 500],  # Più estimatori
+        'subsample': [0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'reg_alpha': [0, 0.1, 1],  # Regolarizzazione L1
+        'reg_lambda': [1, 1.5, 2]  # Regolarizzazione L2
+    }
+     # Cross-validation e ricerca randomizzata
+    kfold = KFold(n_splits=3, shuffle=True, random_state=42)
+    rs_cv_z = RandomizedSearchCV(
+        estimator=XGBRegressor(objective='reg:squarederror', random_state=42),
+        param_distributions=param_distributions_z,
+        n_iter=20,
+        cv=kfold,
+        scoring="neg_mean_squared_error",
+        random_state=random_state,
+        n_jobs=-1
+    )
+
+    rs_cv_z.fit(x_train, y_train[:, 2])
+    print(f"Migliori parametri per TARGET_z: {rs_cv_z.best_params_}")
+    y_pred_z = rs_cv_z.best_estimator_.predict(x_test)
+
+    # Sostituisci le predizioni di TARGET_z con il modello specifico
+    y_pred[:, 2] = y_pred_z
+
+
+    print("Ottimizzazione del modello multioutput con XGBoost...")
+    rs_cv.fit(x_train, y_train)  # Usa i pesi
+    print(f"Migliori parametri: {rs_cv.best_params_}")
+
+    best_model = rs_cv.best_estimator_
+    y_pred = best_model.predict(x_test)
+
+    print("Metriche complessive:")
+    print(f"MSE complessivo: {mean_squared_error(y_test, y_pred, multioutput='uniform_average')}")
+    mse_per_target = mean_squared_error(y_test, y_pred, multioutput='raw_values')
+    for i, target in enumerate(['TARGET_x', 'TARGET_y', 'TARGET_z']):
+        print(f"MSE per {target}: {mse_per_target[i]}")
+
+    final_predictions = best_model.predict(x_ts)
+    processor.write_blind_results(final_predictions)
+    print("Risultati salvati correttamente!")
+
+
+
+
+def random_grid_search_xgboost2():
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    processor = DatasetProcessor(ROOT_DIR)
+    x_train_n, y_train, x_test_n, y_test = processor.read_tr(split=True)
+    x_ts = processor.read_ts()
+
+    # Creazione dello scaler
+    p2 = DatasetProcessor2()
+    x_train, x_test = p2.normalize_data(x_train_n, x_test_n)
+    _, x_ts = p2.normalize_data(x_train_n, x_ts)
+
+    # Definizione della griglia dei parametri per XGBoost
+    param_distributions = {
+        'estimator__learning_rate': np.random.uniform(0.01, 0.3, 10),
+        'estimator__max_depth': np.random.randint(3, 10, 10),
+        'estimator__n_estimators': np.random.randint(50, 300, 10),
+        'estimator__subsample': np.random.uniform(0.5, 1.0, 10),
+        'estimator__colsample_bytree': np.random.uniform(0.5, 1.0, 10),
+        'estimator__gamma': np.random.uniform(0, 5, 10),
+        'estimator__reg_alpha': np.random.uniform(0, 1, 10),
+        'estimator__reg_lambda': np.random.uniform(0, 1, 10),
+    }
+
+    # Modello base con XGBoost
+    base_model = xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
+
+    # MultiOutputRegressor per gestire più target
+    multioutput_model = MultiOutputRegressor(base_model)
+
+    # Cross-validation e ricerca randomizzata
+    kfold = KFold(n_splits=3, shuffle=True, random_state=42)
+    rs_cv = RandomizedSearchCV(
+        estimator=multioutput_model,
+        param_distributions=param_distributions,
+        n_iter=100,  # Numero di iterazioni della ricerca
+        cv=kfold,
+        scoring="neg_mean_squared_error",
+        random_state=42,
+        n_jobs=-1,
+        return_train_score=True
+    )
+
+    print("Ottimizzazione del modello multioutput con XGBoost...")
+    rs_cv.fit(x_train, y_train)
+    print(f"Migliori parametri: {rs_cv.best_params_}")
+
+    best_model = rs_cv.best_estimator_
+
+    # Predizioni sul set di test
+    y_pred = best_model.predict(x_test)
+    print("Metriche complessive per il modello multioutput:")
+    print(f"MSE complessivo: {mean_squared_error(y_test, y_pred, multioutput='uniform_average')}")
+
+    # Calcolo delle metriche per ciascun target
+    mse_per_target = mean_squared_error(y_test, y_pred, multioutput='raw_values')
+    for i, target in enumerate(['TARGET_x', 'TARGET_y', 'TARGET_z']):
+        print(f"MSE per {target}: {mse_per_target[i]}")
+
+    # Predizione su x_ts
+    final_predictions = best_model.predict(x_ts)
+
+    # Scrivi i risultati sul file
+    processor.write_blind_results(final_predictions)
+    print("Risultati salvati correttamente!")
+
+
 def main():
     #random_grid_search()
     #random_grid_search2()
     #random_grid_search3()
     #optimized_random_grid_search()
-    optimized_random_grid_search2()
+    #optimized_random_grid_search2()
     #random_grid_search_different_feature_scaling()
-    #grid_search()
+    grid_search()
     #ensamble_SVM2()
     #nested_grid_search_kfold()
+    #random_grid_search_multioutput()
     #halvingFunction()
+    #random_grid_search_xgboost()
 
 
 if __name__ == "__main__":
