@@ -21,6 +21,8 @@ class DatasetProcessor:
         """
         df_train = pd.read_csv(train_path, sep=r"\s+", header=None)
         df_test = pd.read_csv(test_path, sep=r"\s+", header=None)
+
+        
         return df_train, df_test
 
     def preprocess_data(self, df_train, df_test):
@@ -45,6 +47,7 @@ class DatasetProcessor:
         y_train = y_train.to_numpy()
         X_test = X_test.select_dtypes(include=[np.number]).to_numpy()
         y_test = y_test.to_numpy()
+        
 
         return X_train, y_train, X_test, y_test
     
