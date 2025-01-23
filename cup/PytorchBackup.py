@@ -147,26 +147,6 @@ def fit(model, optimizer, batch_size, loss_fn = mean_euclidean_error, epochs=130
 
         return losses, val_losses
 
-def fit2(model, optimizer, train_loader, epochs, loss_fn=mean_euclidean_error):
-    tr_losses = []  # Per salvare le perdite di addestramento
-
-    for epoch in range(epochs):
-        model.train()
-        epoch_losses = []  # Per accumulare le perdite di ogni batch
-
-        for x_batch, y_batch in train_loader:
-            optimizer.zero_grad()  # Resetta i gradienti
-            y_pred = model(x_batch)  # Predizione
-            loss = loss_fn(y_batch, y_pred)  # Calcolo della perdita
-            loss.backward()  # Backpropagation
-            optimizer.step()  # Aggiornamento dei pesi
-            epoch_losses.append(loss.item())
-
-        # Calcola la perdita media per l'epoca e aggiungila alla lista
-        tr_losses.append(np.mean(epoch_losses))
-
-    return tr_losses
-
 def model_selection(x, y, model_class, loss_fn = mean_euclidean_error, epochs=120, n_splits = 7):
     best_loss = float("inf")
     best_params = None
@@ -265,7 +245,7 @@ def pytorch_nn(ms=True):
     model.apply(init_weights)
     optimizer = optim.Adam(model.parameters(), lr=params['eta'], weight_decay=params['lmb'])
 
-    tr_losses, val_losses = fit2(model=model, optimizer=optimizer,
+    tr_losses, val_losses = fit(model=model, optimizer=optimizer,
                                 batch_size=params['batch_size'])
 
     y_pred, ts_losses = predict(model=model, x_ts=processor.read_ts())

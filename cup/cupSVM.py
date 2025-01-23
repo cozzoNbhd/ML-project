@@ -7,11 +7,10 @@ import numpy as np
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV, KFold, RandomizedSearchCV, StratifiedKFold, train_test_split, ParameterSampler
 from sklearn.metrics import classification_report, accuracy_score, mean_absolute_error, mean_squared_error, make_scorer
-from imblearn.over_sampling import RandomOverSampler
+#from imblearn.over_sampling import RandomOverSampler
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler, MinMaxScaler, PowerTransformer
 from scipy.stats import loguniform 
-from cupUtilities import DatasetProcessor
-from cup2Utilities import DatasetProcessor2
+from cupUtilities import DatasetProcessor, DatasetProcessor2
 from joblib import parallel_backend
 import os
 
@@ -717,12 +716,13 @@ def nested_grid_search_kfold():
         param_grid = {
             'C': np.linspace(0.1, 10, num=10),
             'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
-            'gamma': np.linspace(0.01, 1, num=5)
+            'gamma': np.linspace(0.01, 1, num=5),
+            "epsilon": np.linspace(0.01, 0.1,  num=10)
         }
 
         # Cross-validation
         outer_cv = KFold(n_splits=3, shuffle=True, random_state=42)
-        inner_cv = KFold(n_splits=3, shuffle=True, random_state=42)
+        inner_cv = KFold(n_splits=10, shuffle=True, random_state=42)
         model = SVR()
 
         nested_scores = []
@@ -733,9 +733,9 @@ def nested_grid_search_kfold():
         #x_train_scaled = scaler.fit_transform(x_train)  # Standardizza il training set
         #x_test_scaled = scaler.transform(x_test)       # Applica la stessa trasformazione al test set
 
-        for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(x_train_scaled)):
+        for fold_idx, (train_idx, val_idx) in enumerate(outer_cv.split(x_train)):
             # Divisione in fold
-            X_train_fold, X_val_fold = x_train_scaled[train_idx], x_train_scaled[val_idx]
+            X_train_fold, X_val_fold = x_train[train_idx], x_train[val_idx]
             y_train_fold, y_val_fold = y_train_target[train_idx], y_train_target[val_idx]
 
             # Grid search
@@ -770,10 +770,10 @@ def nested_grid_search_kfold():
         print(f"\nParametri finali per {target}: {final_params}")
 
         final_model = SVR(**final_params)
-        final_model.fit(x_train_scaled, y_train_target)  # Utilizza tutti i dati per il training finale
+        final_model.fit(x_train, y_train_target)  # Utilizza tutti i dati per il training finale
         models[target] = final_model
 
-        y_test_pred = final_model.predict(x_test_scaled)  # Predizioni sul test set
+        y_test_pred = final_model.predict(x_test)  # Predizioni sul test set
         predictions[target] = y_test_pred
         
         print(f"Predizioni su x_test per {target}: {y_test_pred}")
@@ -850,11 +850,11 @@ def main():
     #random_grid_search2()
     #random_grid_search3()
     #optimized_random_grid_search()
-    optimized_random_grid_search2()
+    #optimized_random_grid_search2()
     #random_grid_search_different_feature_scaling()
     #grid_search()
     #ensamble_SVM2()
-    #nested_grid_search_kfold()
+    nested_grid_search_kfold()
     #halvingFunction()
 
 

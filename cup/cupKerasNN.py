@@ -110,7 +110,7 @@ def model_selection(x, y, epochs=200):
         n_jobs=-1,
         cv=10,
         return_train_score=True,
-        scoring='neg_mean_squared_error',
+        scoring='mean_euclidean_error',
         verbose=1
     )
 
