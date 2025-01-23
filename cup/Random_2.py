@@ -155,7 +155,7 @@ def objective(trial):
     epochs = 100
 
     train_data, _, _, _, _, _, _, _ = set_data()
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=10, shuffle=True, random_state=42)
     
     euclidean_errors = []
     
