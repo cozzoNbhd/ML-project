@@ -34,7 +34,7 @@ class DatasetProcessor:
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
         return test
 
-    def write_blind_results(self, y_pred):
+
     def write_blind_results(self,y_pred):
 
         #assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
