@@ -32,6 +32,16 @@ class DatasetProcessor:
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
         return test
 
+<<<<<<< HEAD
+=======
+    def normalize_data(self, X_train, X_test):
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        return X_train_scaled, X_test_scaled
+
+>>>>>>> 96d843b4a75c053cfff26be1aa9a44c522c8288e
     def write_blind_results(self,y_pred):
         file = os.path.join(self.root_dir, BLIND_TEST_FILENAME)
         with open(file, "w") as f:

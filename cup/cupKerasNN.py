@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from keras.src.layers import BatchNormalization
 from keras.src.optimizers import Adam, SGD
+from sklearn.metrics import make_scorer
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Input
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
@@ -17,14 +18,19 @@ import tensorflow.keras.backend as K
 from scikeras.wrappers import KerasClassifier, KerasRegressor
 
 
-# Definizione della perdita Mean Euclidean Error
 def mean_euclidean_error(y_true, y_pred):
+    """Calculate Mean Euclidean Error between true and predicted values."""
     return K.sqrt(K.mean(K.sum(K.square(y_true - y_pred), axis=-1)))
 
-# Funzione per creare il modello
+def make_mee_scorer():
+    """Create a scorer function for scikit-learn that uses MEE."""
+    def mee_sklearn(y_true, y_pred):
+        return -float(K.get_value(mean_euclidean_error(y_true, y_pred)))
+    return make_scorer(mee_sklearn)
+
+
 def create_model(eta=0.003, alpha=0.4, lmb=0.0005, input_dim=12, units=128, num_layers=3,
                  kernel_initializer='glorot_normal', dropout=0.2, optimizer_type='SGD'):
-
     model = Sequential()
     model.add(Input(shape=(input_dim,)))
 
@@ -33,11 +39,9 @@ def create_model(eta=0.003, alpha=0.4, lmb=0.0005, input_dim=12, units=128, num_
                         kernel_initializer=kernel_initializer))
         model.add(BatchNormalization())
         model.add(Dropout(dropout))
-        units //= 2  # Riduzione progressiva delle unità
 
     model.add(Dense(3, activation='linear', kernel_initializer=kernel_initializer))
 
-    # Configurazione dell'ottimizzatore
     if optimizer_type == 'SGD':
         optimizer = SGD(learning_rate=eta, momentum=alpha)
     elif optimizer_type == 'Adam':
@@ -45,41 +49,59 @@ def create_model(eta=0.003, alpha=0.4, lmb=0.0005, input_dim=12, units=128, num_
     else:
         raise ValueError("Ottimizzatore non supportato")
 
-    # Compilazione del modello
-    model.compile(optimizer=optimizer, loss=mean_euclidean_error, metrics=['mse'])
-
+    model.compile(optimizer=optimizer, loss=mean_euclidean_error)
     return model
 
-# Funzione di selezione del modello
+
+def plot_all_losses(history, test_losses, title='Learning Curves'):
+    """
+    Plots training, validation, and test losses.
+
+    Parameters:
+    - history: Training history containing 'loss' and 'val_loss'.
+    - test_losses: List of test losses recorded at each epoch.
+    - title: Title of the plot.
+    """
+    plt.figure(figsize=(10, 6))
+
+    # Plot training loss
+    plt.plot(history.history['loss'], label='Training Loss', color='blue')
+
+    # Plot validation loss
+    plt.plot(history.history['val_loss'], label='Validation Loss', color='green')
+
+    # Plot test loss as a curve
+    if isinstance(test_losses, list):
+        plt.plot(test_losses, label='Internal Test Loss', color='red', linestyle='--')
+
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('learning_curves.png')
+    plt.show()
+
+
 def model_selection(x, y, epochs=200):
 
-    # Fissare il seed per la riproducibilità
     seed = 27
     np.random.seed(seed)
 
-    # Scikeras wrapper
+    # Split the data into train, validation, and internal test sets
+    x_temp, x_test, y_temp, y_test = train_test_split(x, y, test_size=0.2, random_state=seed)
+    x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.2, random_state=seed)
+
     model = KerasRegressor(model=create_model, verbose=0, epochs=epochs)
 
-    """
-    # Definizione della griglia di ricerca
-    eta = np.arange(start=0.003, stop=0.01, step=0.001)
-    eta = [float(round(i, 4)) for i in list(eta)]
-
-    alpha = np.arange(start=0.4, stop=1, step=0.1)
-    alpha = [float(round(i, 1)) for i in list(alpha)]
-
-    lmb = np.arange(start=0.0005, stop=0.001, step=0.0001)
-    lmb = [float(round(i, 4)) for i in list(lmb)]
-    """
-
+    # Hyperparameter grid
     eta = [0.003, 0.005, 0.007, 0.01]
     alpha = [0.4, 0.6, 0.8]
     lmb = [0.0005, 0.0007, 0.001]
-
     batch_size = [32, 64]
-    num_layers = [2, 3]  # Numero di layer da provare
-    units = [64, 128]  # Unita iniziali del primo layer
-    dropout = [0.1, 0.2, 0.3]  # Valori di dropout da provare
+    num_layers = [3, 4]
+    units = [32, 128]
+    dropout = [0.1, 0.2, 0.3]
     optimizer_type = ['SGD', 'Adam']
 
     param_grid = {
@@ -94,86 +116,65 @@ def model_selection(x, y, epochs=200):
         'batch_size': batch_size
     }
 
-    # Avvio della Grid Search
     start_time = time.time()
-    print("Starting Grid Search...\n")
+    print("Starting Random Search...\n")
 
-
-    #grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
-    #                    return_train_score=True, scoring='neg_mean_squared_error', verbose=1, error_score='raise')
-
+    # Create MEE scorer
+    mee_scorer = make_mee_scorer()
 
     grid = RandomizedSearchCV(
         estimator=model,
-        param_distributions=param_grid,  # Nota: usa "param_distributions" invece di "param_grid"
-        n_iter=100,  # Numero di combinazioni casuali da testare
+        param_distributions=param_grid,
+        n_iter=100,
         n_jobs=-1,
         cv=10,
         return_train_score=True,
-        scoring='mean_euclidean_error',
+        scoring=mee_scorer,  # Use custom MEE scorer
         verbose=1
     )
 
-    grid_result = grid.fit(x, y)
+    grid_result = grid.fit(x_train, y_train)
 
-    print("\nEnded Grid Search. ({:.4f} seconds)\n".format(time.time() - start_time))
+    print("\nEnded Random Search. ({:.4f} seconds)\n".format(time.time() - start_time))
 
-    # Report dei risultati
-    means_train = abs(grid_result.cv_results_['mean_train_score'])
-    means_test = abs(grid_result.cv_results_['mean_test_score'])
-    times_train = grid_result.cv_results_['mean_fit_time']
-    times_test = grid_result.cv_results_['mean_score_time']
-    params = grid_result.cv_results_['params']
+    # Get and display top 10 results
+    results = pd.DataFrame(grid_result.cv_results_)
+    top_10 = results.nlargest(10, 'mean_test_score')
 
-    for m_ts, t_ts, m_tr, t_tr, p in sorted(zip(means_test, times_test, means_train, times_train, params)):
-        print("{} \t TR {:.4f} (in {:.4f}s) \t TS {:.4f} (in {:.4f}s)".format(p, m_tr, t_tr, m_ts, t_ts))
+    print("\nTop 10 Model Performances:")
+    for idx, row in top_10.iterrows():
+        params = {k.replace('param_', ''): v for k, v in row.items() if k.startswith('param_')}
+        print(f"\nModel {idx + 1}:")
+        print(f"Mean Training Loss: {-row['mean_train_score']:.4f} ± {row['std_train_score']:.4f}")
+        print(f"Mean Validation Loss: {-row['mean_test_score']:.4f} ± {row['std_test_score']:.4f}")
+        print(f"Parameters: {params}")
 
-    print("\nBest: {:.4f} using {}\n".format(abs(grid.best_score_), grid_result.best_params_))
-
-    # Aggiungi il numero di epoche ai migliori parametri
     best_params = grid_result.best_params_
     best_params['epochs'] = epochs
-
     return best_params
-
-# Funzione per la curva di apprendimento
-def plot_learning_curve(history, start_epoch=1, savefig=False, **kwargs):
-    lgd = ['Loss TR']
-    plt.plot(range(start_epoch, kwargs['epochs'] + 1), history.history['loss'][start_epoch - 1:])
-    if "val_loss" in history.history:
-        plt.plot(range(start_epoch, kwargs['epochs'] + 1), history.history['val_loss'][start_epoch - 1:])
-        lgd.append('Loss VL')
-
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title(f'Keras Learning Curve \n {kwargs}')
-    plt.legend(lgd)
-
-    if savefig:
-        plt.savefig("keras_learning_curve.png")
-    plt.show()
 
 def keras_nn(ms=False):
 
-    # Percorso radice del progetto (due livelli sopra il file corrente)
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
     processor = DatasetProcessor(ROOT_DIR)
 
-    # Carica il dataset di training con split
-    x_train, y_train, x_test, y_test = processor.read_tr(split=True)
+    # Load and split data
+    x_full, y_full, x_holdout, y_holdout = processor.read_tr(split=True)
+
+    # Further split the training data into train, validation, and internal test
+    x_temp, x_test, y_temp, y_test = train_test_split(x_full, y_full, test_size=0.2, random_state=42)
+    x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.2, random_state=42)
 
     test_data = processor.read_ts()
 
-    x_train = np.asarray(x_train)
-    y_train = np.asarray(y_train)
-
     if ms:
-        params = model_selection(x_train, y_train)
+        params = model_selection(x_full, y_full)
     else:
-        params = dict(model__optimizer_type="SGD", model__num_layers=2, model__units=128, batch_size=64, model__alpha=0.9, model__dropout=0.1, model__eta=0.01, model__input_dim=12, model__lmb=0.0005, epochs=200)
+        params = dict(model__optimizer_type="SGD", model__num_layers=3, model__units=128,
+                      batch_size=64, model__alpha=0.6, model__dropout=0.1, model__eta=0.005,
+                      model__input_dim=12, model__lmb=0.0007, epochs=200)
 
-    # Creazione del modello con i migliori iperparametri
+    # Create and train model
     model = create_model(
         optimizer_type=params['model__optimizer_type'],
         num_layers=params['model__num_layers'],
@@ -185,36 +186,44 @@ def keras_nn(ms=False):
         dropout=params['model__dropout'],
     )
 
-    # Training del modello
-    print("Inizio del training del modello...")
-    history = model.fit(
-        x_test,
-        y_test,
-        batch_size=params['batch_size'],
-        epochs=params['epochs'],
-        verbose=1
-    )
+    # Inizializza una lista per registrare le perdite sul set di test
+    test_losses = []
 
-    # Plot della curva di apprendimento
-    plot_learning_curve(history, savefig=True, **params)
+    print("Starting model training...")
+    for epoch in range(params['epochs']):
+        print(f"Epoch {epoch + 1}/{params['epochs']}")
 
-    # Predizioni sul dataset di test (blind test)
-    print("Predizioni sul dataset di test...")
+        # Addestra il modello per un'epoca
+        history = model.fit(
+            x_train, y_train,
+            batch_size=params['batch_size'],
+            epochs=1,
+            verbose=1,
+            validation_data=(x_val, y_val)
+        )
+
+        # Calcola la perdita sul set di test
+        test_loss = model.evaluate(x_test, y_test, verbose=0)
+        test_losses.append(test_loss)
+
+        print(f"Test Loss for Epoch {epoch + 1}: {test_loss:.4f}")
+
+        # Plot tutte le perdite
+    plot_all_losses(history, test_losses, 'Training Learning Curves')
+
+    print("\nFinal Losses:")
+    print(f"Training Loss: {history.history['loss'][-1]:.4f}")
+    print(f"Validation Loss: {history.history['val_loss'][-1]:.4f}")
+    print(f"Internal Test Loss: {test_losses[-1]:.4f}")
+
+    # Make predictions on blind test
+    print("\nMaking predictions on blind test set...")
     predictions = model.predict(test_data)
 
-    # Stampa delle predizioni
-    print("Predizioni sul blind test:")
-    print(predictions)
-
-    # Salvataggio delle predizioni in un file CSV (opzionale)
-    import pandas as pd
     predictions_df = pd.DataFrame(predictions, columns=['Output1', 'Output2', 'Output3'])
     predictions_df.to_csv("blind_test_predictions.csv", index=False)
-    print("Predizioni salvate in 'blind_test_predictions.csv'.")
+    print("Predictions saved to 'blind_test_predictions.csv'")
 
 
 if __name__ == "__main__":
     keras_nn(ms=False)
-
-
-

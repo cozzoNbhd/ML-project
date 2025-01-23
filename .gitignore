@@ -1,5 +1,5 @@
 # Ignora le cartelle dei virtual environments
-venv/
+.venv/
 env/
 /ml
 
