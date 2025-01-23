@@ -12,6 +12,7 @@ from tensorflow.keras.layers import Dense, Dropout, Input
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 import matplotlib.pyplot as plt
 from tensorflow.python.keras.regularizers import l2
+from scipy.stats import uniform, randint
 
 from cupUtilities import DatasetProcessor
 import tensorflow.keras.backend as K
@@ -94,26 +95,33 @@ def model_selection(x, y, epochs=200):
 
     model = KerasRegressor(model=create_model, verbose=0, epochs=epochs)
 
-    # Hyperparameter grid
-    eta = [0.003, 0.005, 0.007, 0.01]
-    alpha = [0.4, 0.6, 0.8]
-    lmb = [0.0005, 0.0007, 0.001]
-    batch_size = [32, 64]
-    num_layers = [3, 4]
-    units = [32, 128]
-    dropout = [0.1, 0.2, 0.3]
-    optimizer_type = ['SGD', 'Adam']
-
     param_grid = {
-        'model__eta': eta,
-        'model__alpha': alpha,
-        'model__lmb': lmb,
+        # Learning rate (eta) as a continuous range between 0.001 and 0.01
+        'model__eta': uniform(loc=0.001, scale=0.009),
+        
+        # Momentum (alpha) as a continuous range between 0.3 and 0.9
+        'model__alpha': uniform(loc=0.3, scale=0.6),
+        
+        # L2 regularization (lmb) with a log-uniform distribution to sample values closer to zero
+        'model__lmb': uniform(loc=0.0001, scale=0.0009),
+        
+        # Dropout rate as a continuous range
+        'model__dropout': uniform(loc=0.1, scale=0.2),
+        
+        # Number of units in layers (integer sampling)
+        'model__units': randint(32, 256),
+        
+        # Input dimension (fixed, but included for completeness)
         'model__input_dim': [x.shape[1]],
-        'model__dropout': dropout,
-        'model__num_layers': num_layers,
-        'model__units': units,
-        'model__optimizer_type': optimizer_type,
-        'batch_size': batch_size
+        
+        # Number of layers (discrete integer sampling)
+        'model__num_layers': randint(2, 5),
+        
+        # Batch size with discrete options
+        'batch_size': [30, 40, 50, 60],
+        
+        # Optimizer type with discrete options
+        'model__optimizer_type': ['SGD', 'Adam']
     }
 
     start_time = time.time()
@@ -203,7 +211,7 @@ def keras_nn(ms=False):
         )
 
         # Calcola la perdita sul set di test
-        test_loss = model.evaluate(x_test, y_test, verbose=0)
+        test_loss = model.evaluate(x_holdout, y_holdout, verbose=0)
         test_losses.append(test_loss)
 
         print(f"Test Loss for Epoch {epoch + 1}: {test_loss:.4f}")
@@ -226,4 +234,4 @@ def keras_nn(ms=False):
 
 
 if __name__ == "__main__":
-    keras_nn(ms=False)
+    keras_nn(ms=True)
