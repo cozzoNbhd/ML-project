@@ -203,11 +203,10 @@ def keras_nn(ms=False):
 
         # Addestra il modello per un'epoca
         history = model.fit(
-            x_train, y_train,
+            x_full, y_full,
             batch_size=params['batch_size'],
             epochs=1,
             verbose=1,
-            validation_data=(x_val, y_val)
         )
 
         # Calcola la perdita sul set di test
@@ -221,7 +220,7 @@ def keras_nn(ms=False):
 
     print("\nFinal Losses:")
     print(f"Training Loss: {history.history['loss'][-1]:.4f}")
-    print(f"Validation Loss: {history.history['val_loss'][-1]:.4f}")
+    #print(f"Validation Loss: {history.history['val_loss'][-1]:.4f}")
     print(f"Internal Test Loss: {test_losses[-1]:.4f}")
 
     # Make predictions on blind test
@@ -234,4 +233,4 @@ def keras_nn(ms=False):
 
 
 if __name__ == "__main__":
-    keras_nn(ms=True)
+    keras_nn(ms=False)
