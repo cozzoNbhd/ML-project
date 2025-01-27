@@ -2,13 +2,16 @@ import optuna
 import os
 import numpy as np
 import torch
-from torch import nn, optim
 import torch.nn.functional as F
+import time
+from torch import nn, optim
 from torch.utils.data import DataLoader, TensorDataset, Subset
 from sklearn.model_selection import train_test_split, KFold
 from matplotlib import pyplot as plt
+from optuna import trial
 from cupUtilities import DatasetProcessor
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # Rete Neurale Parametrizzata
 class NN(nn.Module):
@@ -18,7 +21,7 @@ class NN(nn.Module):
         layers.append(nn.Linear(input_size, num_units))
         for _ in range(num_layers - 1):
             layers.append(nn.Linear(num_units, num_units))
-            layers.append(nn.Tanh())
+            layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout_rate))
         layers.append(nn.Linear(num_units, 3))  # 3 è il numero di output
         self.model = nn.Sequential(*layers)
@@ -144,55 +147,54 @@ def fit2(model, optimizer, train_loader, epochs, loss_fn=mean_euclidean_error):
 
     return tr_losses
 
-def objective(trial):
-    # Parametri da ottimizzare (come prima)
-    num_layers = trial.suggest_int("num_layers", 2, 5)     
-    num_units = trial.suggest_int("num_units", 20, 100)    
-    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
-    eta = trial.suggest_float("eta", 1e-4, 1e-2, log=True)
+def objective(trial, study):
+    # Parametri da ottimizzare
+    num_layers = trial.suggest_int("num_layers", 2, 5)
+    num_units = trial.suggest_int("num_units", 20, 120)
+    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.3)
+    eta = trial.suggest_float("eta", 1e-3, 1e-1, log=True)
     lmb = trial.suggest_float("lmb", 1e-5, 1e-3, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [10, 20, 30, 40])
+    batch_size = trial.suggest_categorical("batch_size", [20, 30, 40, 50, 60])
     epochs = 100
 
     train_data, _, _, _, _, _, _, _ = set_data()
-    kf = KFold(n_splits=10, shuffle=True, random_state=42)
-    
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
     euclidean_errors = []
-    
+    all_training_losses = []
+    all_validation_losses = []
+
     for fold, (train_idx, valid_idx) in enumerate(kf.split(train_data)):
-        # Creiamo i subset per questo fold
         train_subset = Subset(train_data, train_idx)
         valid_subset = Subset(train_data, valid_idx)
-        
-        # Creiamo i data loader
+
         train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=False)
         val_loader = DataLoader(valid_subset, batch_size=batch_size, shuffle=False)
-        
-        # Per la cross-validation, possiamo usare il validation set anche come test set
-        # dato che stiamo solo cercando di ottimizzare gli iperparametri
-        test_loader = val_loader
-        
-        # Inizializziamo e addestriamo il modello
+
         model = NN(num_layers=num_layers, num_units=num_units, dropout_rate=dropout_rate).to(device)
         model.apply(init_weights)
         optimizer = optim.Adam(model.parameters(), lr=eta, weight_decay=lmb)
-        
-        # Chiamiamo fit con tutti gli argomenti richiesti
-        _, val_losses, _ = fit(
+
+        # Addestra il modello e raccogli le perdite
+        tr_losses, val_losses, _ = fit(
             model=model,
             optimizer=optimizer,
             train_loader=train_loader,
             val_loader=val_loader,
-            test_loader=test_loader,
+            test_loader=val_loader,  # Per cross-validation
             epochs=epochs,
             loss_fn=mean_euclidean_error
         )
-        
-        # Prendiamo il minimo errore euclideo medio
-        min_euclidean_error = min(val_losses)
-        euclidean_errors.append(min_euclidean_error)
-    
-    # Restituiamo il negativo della media degli errori
+
+        euclidean_errors.append(min(val_losses))
+        all_training_losses.append(tr_losses)
+        all_validation_losses.append(val_losses)
+
+    # Salva le perdite nei `user_attrs` del trial corrente
+    trial.set_user_attr("training_losses", all_training_losses)
+    trial.set_user_attr("validation_losses", all_validation_losses)
+
+    # Restituisce il negativo della media degli errori euclidei
     return -np.mean(euclidean_errors)
 
 def predict(model, x_ts):
@@ -212,19 +214,51 @@ def predict(model, x_ts):
     return y_pred.detach().cpu().numpy(), iloss.item()
 
 
-def pytorch_nn(use_optuna=True):
+def pytorch_nn(study=None):
     print("PyTorch training started...\n")
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     processor = DatasetProcessor(ROOT_DIR)
 
-    if use_optuna:
-        study = optuna.create_study(direction="maximize")
-        study.optimize(objective, n_trials=50)
+    # Inizializza i parametri
+    params = None
 
-        # Migliori parametri
-        params = study.best_params
-        print(f"Best parameters: {params}")
+    if study:
+        # Estrai i migliori 5 trial
+        best_trials = sorted(study.trials, key=lambda t: t.value, reverse=True)[:5]
+
+        start_time = time.time()
+
+        print("\nTop 5 Best Trials:")
+        for i, trial in enumerate(best_trials):
+            training_losses = trial.user_attrs.get("training_losses", [])
+            validation_losses = trial.user_attrs.get("validation_losses", [])
+            
+            # Controlla se ci sono dati
+            if training_losses and validation_losses:
+                train_means = [np.mean(fold) for fold in training_losses]
+                train_stds = [np.std(fold) for fold in training_losses]
+                val_means = [np.mean(fold) for fold in validation_losses]
+                val_stds = [np.std(fold) for fold in validation_losses]
+
+                print(f"\nTrial {i + 1}:")
+                print(f"  Params: {trial.params}")
+                print(f"  Training Loss - Mean: {np.mean(train_means):.4f}, Std: {np.mean(train_stds):.4f}")
+                print(f"  Validation Loss - Mean: {np.mean(val_means):.4f}, Std: {np.mean(val_stds):.4f}")
+            else:
+                print(f"\nTrial {i + 1}:")
+                print(f"  Params: {trial.params}")
+                print("  Training/Validation Loss data is missing.")
+
+        # Recupera i parametri del miglior trial
+        best_trial = study.best_trial
+        params = best_trial.params  # Assegna i parametri del miglior trial
+        print("\nBest Trial:")
+        print(f"  Params: {best_trial.params}")
+        print(f"  Value (Objective): {best_trial.value:.4f}")
+
     else:
+        print("No study provided. Using default parameters.")
+        # Usa parametri di default se lo `study` non è fornito
         params = {
             "num_layers": 2,
             "num_units": 96,
@@ -234,6 +268,10 @@ def pytorch_nn(use_optuna=True):
             "batch_size": 20,
             "epochs": 200,
         }
+
+    # Controllo finale per assicurarsi che i parametri siano definiti
+    if not params:
+        raise ValueError("Parameters could not be retrieved. Please check the study or provide default parameters.")
 
     # Dati
     _, train_data2, val_data, _, _, x_blind_test, x_test, y_test = set_data()
@@ -275,5 +313,16 @@ def pytorch_nn(use_optuna=True):
     plt.title("Learning Curve")
     plt.show()
 
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"\nTotal execution time: {elapsed_time:.2f} seconds")
+
 if __name__ == "__main__":
-    pytorch_nn()
+    # Crea lo study
+    study = optuna.create_study(direction="maximize")
+
+    # Ottimizza con lo study passato come extra
+    study.optimize(lambda trial: objective(trial, study), n_trials=50)
+
+    # Passa lo study a pytorch_nn
+    pytorch_nn(study=study)
