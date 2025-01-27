@@ -1,6 +1,8 @@
 import os
 import time
 
+from sklearn.preprocessing import StandardScaler
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -38,10 +40,9 @@ def create_model(eta=0.003, alpha=0.4, lmb=0.0005, input_dim=12, units=128, num_
     for i in range(num_layers):
         model.add(Dense(units, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(lmb),
                         kernel_initializer=kernel_initializer))
-        model.add(BatchNormalization())
         model.add(Dropout(dropout))
 
-    model.add(Dense(3, activation='linear', kernel_initializer=kernel_initializer))
+    model.add(Dense(3, activation='linear'))
 
     if optimizer_type == 'SGD':
         optimizer = SGD(learning_rate=eta, momentum=alpha)
@@ -52,36 +53,6 @@ def create_model(eta=0.003, alpha=0.4, lmb=0.0005, input_dim=12, units=128, num_
 
     model.compile(optimizer=optimizer, loss=mean_euclidean_error)
     return model
-
-
-def plot_all_losses(history, test_losses, title='Learning Curves'):
-    """
-    Plots training, validation, and test losses.
-
-    Parameters:
-    - history: Training history containing 'loss' and 'val_loss'.
-    - test_losses: List of test losses recorded at each epoch.
-    - title: Title of the plot.
-    """
-    plt.figure(figsize=(10, 6))
-
-    # Plot training loss
-    plt.plot(history.history['loss'], label='Training Loss', color='blue')
-
-    # Plot validation loss
-    plt.plot(history.history['val_loss'], label='Validation Loss', color='green')
-
-    # Plot test loss as a curve
-    if isinstance(test_losses, list):
-        plt.plot(test_losses, label='Internal Test Loss', color='red', linestyle='--')
-
-    plt.title(title)
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('learning_curves.png')
-    plt.show()
 
 
 def model_selection(x, y, epochs=200):
@@ -106,7 +77,7 @@ def model_selection(x, y, epochs=200):
         'model__lmb': uniform(loc=0.0001, scale=0.0009),
         
         # Dropout rate as a continuous range
-        'model__dropout': uniform(loc=0.1, scale=0.2),
+        'model__dropout': uniform(loc=0.01, scale=0.2),
         
         # Number of units in layers (integer sampling)
         'model__units': randint(32, 256),
@@ -133,9 +104,9 @@ def model_selection(x, y, epochs=200):
     grid = RandomizedSearchCV(
         estimator=model,
         param_distributions=param_grid,
-        n_iter=100,
+        n_iter=1000,
         n_jobs=-1,
-        cv=10,
+        cv=5,
         return_train_score=True,
         scoring=mee_scorer,  # Use custom MEE scorer
         verbose=1
@@ -162,71 +133,95 @@ def model_selection(x, y, epochs=200):
     return best_params
 
 def keras_nn(ms=False):
-
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     processor = DatasetProcessor(ROOT_DIR)
 
-    # Load and split data
+    # Load data
     x_full, y_full, x_holdout, y_holdout = processor.read_tr(split=True)
-
-    # Further split the training data into train, validation, and internal test
-    x_temp, x_test, y_temp, y_test = train_test_split(x_full, y_full, test_size=0.2, random_state=42)
-    x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.2, random_state=42)
-
     test_data = processor.read_ts()
 
-    if ms:
-        params = model_selection(x_full, y_full)
-    else:
-        params = dict(model__optimizer_type="SGD", model__num_layers=3, model__units=128,
-                      batch_size=64, model__alpha=0.6, model__dropout=0.1, model__eta=0.005,
-                      model__input_dim=12, model__lmb=0.0007, epochs=200)
+    # 1. Scala i dati
+    scaler_x = StandardScaler()
+    scaler_y = StandardScaler()
 
-    # Create and train model
+    x_full_scaled = scaler_x.fit_transform(x_full)
+    y_full_scaled = scaler_y.fit_transform(y_full)
+
+    x_holdout_scaled = scaler_x.transform(x_holdout)
+    y_holdout_scaled = scaler_y.transform(y_holdout)
+
+    test_data_scaled = scaler_x.transform(test_data)
+
+    if ms:
+        # Passa i dati scalati a model_selection
+        params = model_selection(x_full_scaled, y_full_scaled)
+    else:
+        params = dict(model__optimizer_type="SGD", model__num_layers=3, model__units=156,
+                      batch_size=50, model__alpha=0.5152694918205576, model__dropout=0.02234960514116035,
+                      model__eta=0.002877379732653833, model__input_dim=12, model__lmb=0.00024746152259920174,
+                      epochs=200)
+
+    # Crea e addestra il modello
     model = create_model(
         optimizer_type=params['model__optimizer_type'],
         num_layers=params['model__num_layers'],
         alpha=params['model__alpha'],
         eta=params['model__eta'],
         lmb=params['model__lmb'],
-        input_dim=x_train.shape[1],
+        input_dim=x_full_scaled.shape[1],
         units=params['model__units'],
         dropout=params['model__dropout'],
     )
 
-    # Inizializza una lista per registrare le perdite sul set di test
+    # Liste per training e test loss
+    training_losses = []
     test_losses = []
 
     print("Starting model training...")
+
     for epoch in range(params['epochs']):
         print(f"Epoch {epoch + 1}/{params['epochs']}")
 
         # Addestra il modello per un'epoca
         history = model.fit(
-            x_train, y_train,
+            x_full_scaled, y_full_scaled,
             batch_size=params['batch_size'],
             epochs=1,
             verbose=1,
-            validation_data=(x_val, y_val)
         )
 
+        # Salva il training loss
+        training_loss = history.history['loss'][0]
+        training_losses.append(training_loss)
+
         # Calcola la perdita sul set di test
-        test_loss = model.evaluate(x_holdout, y_holdout, verbose=0)
+        test_loss = model.evaluate(x_holdout_scaled, y_holdout_scaled, verbose=0)
         test_losses.append(test_loss)
 
+        print(f"Training Loss for Epoch {epoch + 1}: {training_loss:.4f}")
         print(f"Test Loss for Epoch {epoch + 1}: {test_loss:.4f}")
 
-        # Plot tutte le perdite
-    plot_all_losses(history, test_losses, 'Training Learning Curves')
+    # Grafico delle perdite
+    plt.figure(figsize=(10, 6))
+    plt.plot(training_losses, label='Training Loss', color='blue', linestyle='-')
+    plt.plot(test_losses, label='Internal Test Loss', color='red', linestyle='--')
+    plt.title('Training and Internal Test Learning Curves')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig('final_learning_curves.png')
+    plt.show()
 
     print("\nFinal Losses:")
-    print(f"Training Loss: {history.history['loss'][-1]:.4f}")
-    print(f"Validation Loss: {history.history['val_loss'][-1]:.4f}")
+    print(f"Training Loss: {training_losses[-1]:.4f}")
     print(f"Internal Test Loss: {test_losses[-1]:.4f}")
 
-    # Make predictions on blind test
+    # Riscalatura delle predizioni
     print("\nMaking predictions on blind test set...")
-    predictions = model.predict(test_data)
+    predictions_scaled = model.predict(test_data_scaled)
+    predictions = scaler_y.inverse_transform(predictions_scaled)
 
     predictions_df = pd.DataFrame(predictions, columns=['Output1', 'Output2', 'Output3'])
     predictions_df.to_csv("blind_test_predictions.csv", index=False)
@@ -234,4 +229,4 @@ def keras_nn(ms=False):
 
 
 if __name__ == "__main__":
-    keras_nn(ms=True)
+    keras_nn(ms=False)
