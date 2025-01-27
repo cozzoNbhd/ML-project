@@ -1,7 +1,7 @@
 import os
 import time
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 import numpy as np
 import pandas as pd
@@ -61,8 +61,8 @@ def model_selection(x, y, epochs=200):
     np.random.seed(seed)
 
     # Split the data into train, validation, and internal test sets
-    x_temp, x_test, y_temp, y_test = train_test_split(x, y, test_size=0.2, random_state=seed)
-    x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.2, random_state=seed)
+    #x_temp, x_test, y_temp, y_test = train_test_split(x, y, test_size=0.2, random_state=seed)
+    #x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.2, random_state=seed)
 
     model = KerasRegressor(model=create_model, verbose=0, epochs=epochs)
 
@@ -112,7 +112,7 @@ def model_selection(x, y, epochs=200):
         verbose=1
     )
 
-    grid_result = grid.fit(x_train, y_train)
+    grid_result = grid.fit(x, y)
 
     print("\nEnded Random Search. ({:.4f} seconds)\n".format(time.time() - start_time))
 
@@ -141,20 +141,20 @@ def keras_nn(ms=False):
     test_data = processor.read_ts()
 
     # 1. Scala i dati
-    scaler_x = StandardScaler()
-    scaler_y = StandardScaler()
+    scaler_train = MinMaxScaler()
+    #scaler_y = StandardScaler()
 
-    x_full_scaled = scaler_x.fit_transform(x_full)
-    y_full_scaled = scaler_y.fit_transform(y_full)
+    x_full_scaled = scaler_train.fit_transform(x_full)
+    #y_full_scaled = scaler_y.fit_transform(y_full)
 
-    x_holdout_scaled = scaler_x.transform(x_holdout)
-    y_holdout_scaled = scaler_y.transform(y_holdout)
+    x_holdout_scaled = scaler_train.fit_transform(x_holdout)
+    #y_holdout_scaled = scaler_y.transform(y_holdout)
 
-    test_data_scaled = scaler_x.transform(test_data)
+    test_data_scaled = scaler_train.fit_transform(test_data)
 
     if ms:
         # Passa i dati scalati a model_selection
-        params = model_selection(x_full_scaled, y_full_scaled)
+        params = model_selection(x_full_scaled, y_full)
     else:
         params = dict(model__optimizer_type="SGD", model__num_layers=3, model__units=156,
                       batch_size=50, model__alpha=0.5152694918205576, model__dropout=0.02234960514116035,
@@ -184,7 +184,7 @@ def keras_nn(ms=False):
 
         # Addestra il modello per un'epoca
         history = model.fit(
-            x_full_scaled, y_full_scaled,
+            x_full_scaled, y_full,
             batch_size=params['batch_size'],
             epochs=1,
             verbose=1,
@@ -195,7 +195,7 @@ def keras_nn(ms=False):
         training_losses.append(training_loss)
 
         # Calcola la perdita sul set di test
-        test_loss = model.evaluate(x_holdout_scaled, y_holdout_scaled, verbose=0)
+        test_loss = model.evaluate(x_holdout_scaled, y_holdout, verbose=0)
         test_losses.append(test_loss)
 
         print(f"Training Loss for Epoch {epoch + 1}: {training_loss:.4f}")
@@ -220,8 +220,8 @@ def keras_nn(ms=False):
 
     # Riscalatura delle predizioni
     print("\nMaking predictions on blind test set...")
-    predictions_scaled = model.predict(test_data_scaled)
-    predictions = scaler_y.inverse_transform(predictions_scaled)
+    predictions = model.predict(test_data_scaled)
+    #predictions = scaler_y.inverse_transform(predictions_scaled)
 
     predictions_df = pd.DataFrame(predictions, columns=['Output1', 'Output2', 'Output3'])
     predictions_df.to_csv("blind_test_predictions.csv", index=False)
@@ -229,4 +229,4 @@ def keras_nn(ms=False):
 
 
 if __name__ == "__main__":
-    keras_nn(ms=False)
+    keras_nn(ms=True)
