@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from numpy import loadtxt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 Team_name="Martana"
 BLIND_TEST_FILENAME =f"{Team_name}ML-CUP24-TS.csv"
 import matplotlib.pyplot as plt
@@ -33,6 +33,7 @@ class DatasetProcessor:
         file = os.path.join(self.root_dir, "datasets", "ml-cup", "ML-CUP24-TS.csv")
         test = np.loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
         return test
+
 
     def normalize_data(self, X_train, X_test):
         scaler = StandardScaler()
