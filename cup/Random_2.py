@@ -18,7 +18,7 @@ class NN(nn.Module):
         layers.append(nn.Linear(input_size, num_units))
         for _ in range(num_layers - 1):
             layers.append(nn.Linear(num_units, num_units))
-            layers.append(nn.ReLU())
+            layers.append(nn.Tanh())
             layers.append(nn.Dropout(dropout_rate))
         layers.append(nn.Linear(num_units, 3))  # 3 è il numero di output
         self.model = nn.Sequential(*layers)
@@ -44,6 +44,8 @@ def set_data():
     # Converti in tensori
     x_tensor = torch.from_numpy(x_train).float().to(device)
     y_tensor = torch.from_numpy(y_train).float().to(device)
+    x2_tensor = torch.from_numpy(x_train2).float().to(device)
+    y2_tensor = torch.from_numpy(y_train2).float().to(device)
     x_val_tens = torch.from_numpy(x_val).float().to(device)
     y_val_tens = torch.from_numpy(y_val).float().to(device)
     x_tens = torch.from_numpy(x_blind_test).float().to(device)
@@ -52,9 +54,10 @@ def set_data():
 
 
     train_data = TensorDataset(x_tensor, y_tensor)
+    train_data2 = TensorDataset(x2_tensor,y2_tensor)
     val_data = TensorDataset(x_val_tens, y_val_tens)
 
-    return train_data, val_data, x_tensor, y_tensor, x_tens, x_test_tens, y_test_tens
+    return train_data, train_data2, val_data, x_tensor, y_tensor, x_tens, x_test_tens, y_test_tens
 
 
 def mean_euclidean_error(y_true, y_pred):
@@ -93,8 +96,8 @@ def plot_learning_curve(tr_losses, val_losses, savefig=True, **kwargs):
     plt.show()
 
 
-def fit(model, optimizer, train_loader, val_loader, epochs, loss_fn=mean_euclidean_error):
-    tr_losses, val_losses = [], []
+def fit(model, optimizer, train_loader, val_loader, test_loader, epochs=100, loss_fn=mean_euclidean_error):
+    tr_losses, val_losses, test_losses = [], [], []
 
     for epoch in range(epochs):
         model.train()
@@ -109,12 +112,17 @@ def fit(model, optimizer, train_loader, val_loader, epochs, loss_fn=mean_euclide
 
         tr_losses.append(np.mean(epoch_losses))
 
+        # Calcolo delle perdite di validazione
         model.eval()
         with torch.no_grad():
-            epoch_val_losses = [loss_fn(model(x_val), y_val).item() for x_val, y_val in val_loader]
-            val_losses.append(np.mean(epoch_val_losses))
+            val_epoch_losses = [loss_fn(model(x_val), y_val).item() for x_val, y_val in val_loader]
+            test_epoch_losses = [loss_fn(model(x_test), y_test).item() for x_test, y_test in test_loader]
+            val_losses.append(np.mean(val_epoch_losses))
+            test_losses.append(np.mean(test_epoch_losses))
 
-    return tr_losses, val_losses
+    return tr_losses, val_losses, test_losses
+
+
 
 def fit2(model, optimizer, train_loader, epochs, loss_fn=mean_euclidean_error):
     tr_losses = []  # Per salvare le perdite di addestramento
@@ -137,43 +145,60 @@ def fit2(model, optimizer, train_loader, epochs, loss_fn=mean_euclidean_error):
     return tr_losses
 
 def objective(trial):
-    # Parametri da ottimizzare
-    num_layers = trial.suggest_int("num_layers", 2, 5)
-    num_units = trial.suggest_int("num_units", 20, 100)
+    # Parametri da ottimizzare (come prima)
+    num_layers = trial.suggest_int("num_layers", 2, 5)     
+    num_units = trial.suggest_int("num_units", 20, 100)    
     dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
     eta = trial.suggest_float("eta", 1e-4, 1e-2, log=True)
     lmb = trial.suggest_float("lmb", 1e-5, 1e-3, log=True)
     batch_size = trial.suggest_categorical("batch_size", [10, 20, 30, 40])
-    epochs = 100  # Fisso per velocizzare la ricerca
+    epochs = 100
 
-    # Dati
-    train_data, _, _, _, _, _, _  = set_data()
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    train_data, _, _, _, _, _, _, _ = set_data()
+    kf = KFold(n_splits=10, shuffle=True, random_state=42)
     
-    accuracies = []
-    # Cross-validation
+    euclidean_errors = []
+    
     for fold, (train_idx, valid_idx) in enumerate(kf.split(train_data)):
+        # Creiamo i subset per questo fold
         train_subset = Subset(train_data, train_idx)
         valid_subset = Subset(train_data, valid_idx)
-
+        
+        # Creiamo i data loader
         train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=False)
         val_loader = DataLoader(valid_subset, batch_size=batch_size, shuffle=False)
-
-    # Modello
+        
+        # Per la cross-validation, possiamo usare il validation set anche come test set
+        # dato che stiamo solo cercando di ottimizzare gli iperparametri
+        test_loader = val_loader
+        
+        # Inizializziamo e addestriamo il modello
         model = NN(num_layers=num_layers, num_units=num_units, dropout_rate=dropout_rate).to(device)
         model.apply(init_weights)
         optimizer = optim.Adam(model.parameters(), lr=eta, weight_decay=lmb)
-
-    # Addestra e calcola la loss di validazione
-        _, val_losses = fit(model, optimizer, train_loader, val_loader, epochs)
-        accuracies.append(1- min(val_losses))
+        
+        # Chiamiamo fit con tutti gli argomenti richiesti
+        _, val_losses, _ = fit(
+            model=model,
+            optimizer=optimizer,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
+            epochs=epochs,
+            loss_fn=mean_euclidean_error
+        )
+        
+        # Prendiamo il minimo errore euclideo medio
+        min_euclidean_error = min(val_losses)
+        euclidean_errors.append(min_euclidean_error)
     
-    return np.mean(accuracies)
+    # Restituiamo il negativo della media degli errori
+    return -np.mean(euclidean_errors)
 
 def predict(model, x_ts):
     # change our data into tensors to work with PyTorch
 
-    _ ,_, _, _, _, x_int_test, y_int_test = set_data()
+    _ ,_, _, _, _, _, x_int_test, y_int_test = set_data()
 
     # predict on internal test set
     y_ipred = model(x_int_test)
@@ -194,7 +219,7 @@ def pytorch_nn(use_optuna=True):
 
     if use_optuna:
         study = optuna.create_study(direction="maximize")
-        study.optimize(objective, n_trials=30)
+        study.optimize(objective, n_trials=50)
 
         # Migliori parametri
         params = study.best_params
@@ -202,18 +227,19 @@ def pytorch_nn(use_optuna=True):
     else:
         params = {
             "num_layers": 2,
-            "num_units": 40,
-            "dropout_rate": 0.0,
-            "eta": 0.001,
-            "lmb": 0.0005,
-            "batch_size": 32,
+            "num_units": 96,
+            "dropout_rate": 0.0237811,
+            "eta": 0.002035,
+            "lmb": 0.0000109414,
+            "batch_size": 20,
             "epochs": 200,
         }
 
     # Dati
-    train_data, val_data, _, _, x_test, _, _ = set_data()
-    train_loader = DataLoader(train_data, batch_size=params["batch_size"], shuffle=True)
+    _, train_data2, val_data, _, _, x_blind_test, x_test, y_test = set_data()
+    train_loader = DataLoader(train_data2, batch_size=params["batch_size"], shuffle=True)
     val_loader = DataLoader(val_data, batch_size=params["batch_size"], shuffle=False)
+    test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=params["batch_size"], shuffle=False)
 
     # Modello
     model = NN(
@@ -225,15 +251,15 @@ def pytorch_nn(use_optuna=True):
     optimizer = optim.Adam(model.parameters(), lr=params["eta"], weight_decay=params["lmb"])
 
     # Addestramento
-    tr_losses = fit2(model, optimizer, train_loader, params.get("epochs", 50))
+    tr_losses, val_losses, test_losses = fit(model, optimizer, train_loader, val_loader, test_loader, params.get("epochs", 100))
 
     # Previsione
-    y_pred, iloss = predict(model, x_test)
+    y_pred, iloss = predict(model, x_blind_test)
 
     # Risultati
     print(f"Internal Test Loss: {iloss}")
     print(f"Final Training Loss: {tr_losses[-1]}")
-    #print(f"Final Validation Loss: {val_losses[-1]}")
+    print(f"Final Validation Loss: {val_losses[-1]}")
 
     # Salva i risultati
     processor.write_blind_results(y_pred)
@@ -242,7 +268,8 @@ def pytorch_nn(use_optuna=True):
     # Plot delle curve di apprendimento
     plt.figure(figsize=(10, 6))
     plt.plot(tr_losses, label="Training Loss")
-    #plt.plot(val_losses, label="Validation Loss")
+    plt.plot(val_losses, label="Validation Loss")
+    plt.plot(test_losses, label="Internal Test Loss")
     plt.legend()
     plt.grid()
     plt.title("Learning Curve")
